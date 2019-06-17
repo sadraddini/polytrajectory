@@ -45,4 +45,5 @@ def reduced_order(sys,T):
             +np.dot(e_2-np.dot(M[t],sys.F["w",t]),np.vstack([sys.W[t].x for tau in range(0,t+1)]))\
             +np.dot(np.dot(M[t],sys.F["v",t]),np.vstack([sys.V[t].x for tau in range(0,t+1)]))\
             +sys.V[t+1].x
+        print "error in initial condition:",e_1-np.dot(M[t],sys.F["x",t])
     return M,N,Z

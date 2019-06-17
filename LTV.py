@@ -57,4 +57,7 @@ class system:
         for t in range(T):
             self.F["v",t]=spa.block_diag(*[0*np.eye(self.o*t),np.eye(self.o)])
             
-    
+def test_controllability(A,B):
+    n=A.shape[0]
+    C=np.hstack([np.dot(np.linalg.matrix_power(A,i),B) for i in range(n)])
+    print np.linalg.matrix_rank(C)
