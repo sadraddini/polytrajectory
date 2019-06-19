@@ -47,3 +47,4 @@ def reduced_order(sys,T):
             +sys.V[t+1].x
         print "error in initial condition:",e_1-np.dot(M[t],sys.F["x",t])
     return M,N,Z
+

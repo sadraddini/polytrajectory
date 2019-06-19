@@ -53,28 +53,33 @@ def synthesis(sys,T,q0,y_goal):
     # Final Constarint
     Z_f=zonotope(ybar[T],phi[T])
     # Cost!
-    c=np.linalg.norm(sys.X0.G)
+    c=np.linalg.norm(sys.X0.G,ord=np.inf)
     prog.AddBoundingBoxConstraint(-c,c,phi[0]) # zeta
-    prog.AddLinearCost(sum([phi[0][i,i] for i in range(sys.o)]))
+    prog.AddLinearCost(sum([phi[0][i,i]*1000 for i in range(sys.o)]))
     prog.AddQuadraticCost(np.eye(sys.m),np.zeros(sys.m),ubar[0])
-    prog.AddQuadraticCost(np.eye(sys.o)*100,np.zeros(sys.o),ybar[0])
-    # Control subset
+    prog.AddQuadraticCost(np.eye(sys.o),0*np.ones(sys.o),ybar[0])
     for t in range(T):
-        Z_theta=zonotope(ubar[t],theta[t])
-        subset(prog,Z_theta,sys.U_set)
+        prog.AddQuadraticCost(3*np.trace(np.dot(phi[t].T,phi[t])))
+    for t in range(T):
+        prog.AddQuadraticCost(np.trace(np.dot(theta[t].T,theta[t])))
+    prog.AddQuadraticCost(30*np.trace(np.dot(phi[T].T,phi[T])))
+    # Control subset
+#    for t in range(T):
+#        Z_theta=zonotope(ubar[t],theta[t])
+#        subset(prog,Z_theta,sys.U_set)
     # Final Subset
 #    subset(prog,Z_f,y_goal)
-    D=subset_soft(prog,Z_f,y_goal)
+#    D=subset_soft(prog,Z_f,y_goal)
     result=gurobi_solver.Solve(prog,None,None)
     print result
     if result.is_success():
         print "Synthesis Success!","\n"*5
-        print "D=",result.GetSolution(D)
+#        print "D=",result.GetSolution(D)
         sys.Phi={t:sym.Evaluate(result.GetSolution(Phi[t]),{}) for t in range(T+1)}
         sys.Theta={t:sym.Evaluate(result.GetSolution(Theta[t]),{}) for t in range(T)}
         sys.ybar={t:result.GetSolution(ybar[t]) for t in range(T+1)}
         sys.ubar={t:result.GetSolution(ubar[t]) for t in range(T)}
-        sys.phi={t:result.GetSolution(phi[t]) for t in range(T)}
+        sys.phi={t:result.GetSolution(phi[t]) for t in range(T+1)}
         sys.theta={t:result.GetSolution(theta[t]) for t in range(T)}
     else:
         print "Synthesis Failed!"
