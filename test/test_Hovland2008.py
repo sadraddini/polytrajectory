@@ -17,9 +17,9 @@ S=system()
 n=6
 m=1
 o=1
-T=30
+T=110
 #np.random.seed(1)
-S.X0=zonotope(np.array(([0,0,0,0,0,0])).reshape(6,1),np.eye(n)*5)
+S.X0=zonotope(np.array(([0,0,0,0,0,0])).reshape(6,1),np.eye(n)*1)
 for t in range(T):
     S.A[t]=np.array([[0.28,0.25,-0.19,-0.22,0.03,-0.50],
                      [0.25,-0.47,0.30,0.17,-0.11,-0.11],
@@ -32,7 +32,7 @@ for t in range(T):
     S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.05)
     S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.05)
 
-S.U_set=zonotope(np.zeros((m,1)),np.eye(m)*1)
+S.U_set=zonotope(np.zeros((m,1)),np.eye(m)*2)
 S.construct_dimensions()
 S.construct_E()
 M,N,Z=reduced_order(S,T-1)
@@ -57,9 +57,9 @@ S.M=M
 S.N=N
 
 # Synthesis
-T=27
+T=100
 Goal=zonotope(np.ones((1,1))*0,np.eye(1)*1)
-synthesis(S,q0=3,T=T,y_goal=Goal)
+synthesis(S,T=T,y_goal=Goal)
 
 def simulate(sys,x_0,T):
     x,y,u,v,w={},{},{},{},{}

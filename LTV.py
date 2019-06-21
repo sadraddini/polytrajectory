@@ -35,7 +35,7 @@ class system:
         # Construct E_x
         self.E["x",0]=self.A[0]
         for t in range(1,T):
-            self.E["x",t]=np.dot(self.A[0],self.E["x",t-1])
+            self.E["x",t]=np.dot(self.A[t],self.E["x",t-1])
         # Construct E_u
         self.E["u",0]=self.B[0]
         for t in range(1,T):
