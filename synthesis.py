@@ -58,15 +58,15 @@ def synthesis(sys,T,y_goal,q=1):
     Z_f=zonotope(ybar[T],phi[T])
     # Cost!
     for t in range(T):
-        prog.AddQuadraticCost(np.eye(sys.m),np.zeros(sys.m),ybar[t+1])
+        prog.AddQuadraticCost(50*np.eye(sys.m),np.zeros(sys.m),ybar[t+1])
         prog.AddQuadraticCost(5*np.trace(np.dot(phi[t].T,phi[t])))
-        prog.AddQuadraticCost(5*np.eye(sys.m),np.zeros(sys.m),ubar[t])
-        prog.AddQuadraticCost(np.trace(np.dot(theta[t].T,theta[t])))
-    prog.AddQuadraticCost(30*np.trace(np.dot(phi[T].T,phi[T])))
+        prog.AddQuadraticCost(1*np.eye(sys.m),np.zeros(sys.m),ubar[t])
+        prog.AddQuadraticCost(0.1*np.trace(np.dot(theta[t].T,theta[t])))
+    prog.AddQuadraticCost(100*np.trace(np.dot(phi[T].T,phi[T])))
     # Control subset
-    for t in range(T):
-        Z_theta=zonotope(ubar[t],theta[t])
-        subset(prog,Z_theta,sys.U_set)
+#    for t in range(T):
+#        Z_theta=zonotope(ubar[t],theta[t])
+#        subset(prog,Z_theta,sys.U_set)
     # Final Subset
 #    subset(prog,Z_f,y_goal)
 #    D=subset_soft(prog,Z_f,y_goal)
@@ -102,9 +102,9 @@ def zonotopic_controller(x_current,X,U):
     prog.AddLinearCost(epsilon[0,0])
     result=gurobi_solver.Solve(prog,None,None)
     if result.is_success():
-        print "controller solution found! with",result.GetSolution(epsilon)
+#        print "controller solution found! with",result.GetSolution(epsilon)
         zeta_num=result.GetSolution(zeta).reshape(zeta.shape[0],1)  
-        print "zeta is",zeta_num.T,zeta_num.shape
+#        print "zeta is",zeta_num.T,zeta_num.shape
         return np.dot(U.G,zeta_num)+U.x
     else:
         print result

@@ -17,7 +17,7 @@ S=system()
 n=6
 m=1
 o=1
-T=110
+T=25
 #np.random.seed(1)
 S.X0=zonotope(np.array(([0,0,0,0,0,0])).reshape(6,1),np.eye(n)*1)
 for t in range(T):
@@ -57,7 +57,7 @@ S.M=M
 S.N=N
 
 # Synthesis
-T=100
+T=20
 Goal=zonotope(np.ones((1,1))*0,np.eye(1)*1)
 synthesis(S,T=T,y_goal=Goal)
 

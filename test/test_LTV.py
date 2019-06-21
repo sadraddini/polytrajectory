@@ -18,12 +18,12 @@ m=1
 o=1
 T=40
 #np.random.seed(1)
-S.X0=zonotope(np.array(([0,0,0,0])).reshape(4,1),np.eye(n)*0.5)
+S.X0=zonotope(np.array(([35,0,0,0])).reshape(4,1),np.eye(n)*10)
 for t in range(T):
     S.A[t]=np.array([[1.1,0.2,-0.1,-0.01],[-0.01,1,-0.01,0],[0.0,0.1,1.2,-0.1],[0,-0.1,-0.1,1]]).reshape(4,4)
     S.B[t]=np.array([[-0.01,0.02,0,0.3]]).reshape(4,1)
     S.C[t]=np.array([[1,0,0,0]]).reshape(1,4)
-    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.0)
+    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.1)
     S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.0)
 
 S.U_set=zonotope(np.zeros((m,1)),np.eye(m)*500)
@@ -49,7 +49,7 @@ S.M=M
 S.N=N
 
 # Synthesis
-T=21
+T=31
 Goal=zonotope(np.ones((1,1))*0,np.eye(1)*1)
 synthesis(S,T=T,y_goal=Goal)
 
@@ -113,7 +113,7 @@ ax0.set_title(r'Reachable Outputs Over Time')
 ax1.set_xlabel(r'time')
 ax1.set_ylabel(r'$u$')
 ax1.set_title(r'Possible Control Inputs Over Time')
-for i in range(40):
+for i in range(19):
     zeta_x=2*(np.random.random((S.n,1))-0.5)
     x_0=np.dot(S.X0.G,zeta_x)+S.X0.x
     x,y,u,v,w=simulate(S,x_0,T)
