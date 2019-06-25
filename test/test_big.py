@@ -14,22 +14,23 @@ from pypolycontain.lib.zonotope_order_reduction.methods import G_cut,Girard_hull
 from pypolytrajectory.synthesis import synthesis,zonotopic_controller
 
 S=system()
-n=200
+n=25
 m=1
 o=1
 T=55
-np.random.seed(1)
-S.X0=zonotope(np.ones((n,1))*10,np.eye(n)*20)
+np.random.seed(10)
+S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
+A=np.eye(n)+np.random.normal(size=(n,n))*0.02
 for t in range(T):
-    S.A[t]=np.eye(n)+np.random.normal(size=(n,n))*0.01
-    S.B[t]=np.random.randint(0,2,size=(n,m))
+    S.A[t]=A
+    S.B[t]=B
     S.C[t]=np.zeros((o,n))
     S.C[t][0,0]=1
-    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.002)
-    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.002)
+    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.01)
+    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.01)
 
-S.U_set=zonotope(np.zeros((m,1)),np.eye(m)*0)
+S.U_set=zonotope(np.zeros((m,1)),np.eye(m)*2)
 S.construct_dimensions()
 S.construct_E()
 M,N,Z=reduced_order(S,T-1)
@@ -52,7 +53,7 @@ S.M=M
 S.N=N
 
 # Synthesis
-T=50
+T=40
 Goal=zonotope(np.ones((1,1))*0,np.eye(1)*1)
 synthesis(S,T=T,y_goal=Goal)
 

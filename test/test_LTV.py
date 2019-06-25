@@ -7,7 +7,7 @@ Created on Thu Jun  6 18:59:32 2019
 """
 import numpy as np
 from pypolytrajectory.LTV import system
-from pypolytrajectory.reduction import reduced_order
+from pypolytrajectory.reduction import reduced_order,order_reduction_error
 from pypolycontain.lib.objects import zonotope
 from pypolycontain.lib.zonotope_order_reduction.methods import G_cut,Girard_hull
 from pypolytrajectory.synthesis import synthesis,zonotopic_controller
@@ -31,7 +31,12 @@ S.construct_dimensions()
 S.construct_E()
 M,N,Z=reduced_order(S,T-1)
 
-#raise 1
+S.Z=Z
+S.M=M
+S.N=N
+order_reduction_error(S,T-2)
+
+raise 1
 
 for t in range(T-1):
     print t,"-zonotope reduction"
