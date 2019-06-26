@@ -1,11 +1,10 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun 24 18:53:03 2019
+Created on Wed Jun 26 19:06:49 2019
 
 @author: sadra
 """
-
 import numpy as np
 from pypolytrajectory.LTV import system,test_controllability
 from pypolytrajectory.reduction import reduced_order,order_reduction_error,error_construction,error_construction_old
@@ -15,39 +14,28 @@ from pypolytrajectory.synthesis import synthesis_disturbance_feedback,zonotopic_
 
 import pydrake.systems.controllers as PC
 
-#S=system()
-#n=4
-#m=1
-#o=1
-#T=40
-##np.random.seed(1)
-#S.X0=zonotope(np.array(([0,0,0,0])).reshape(4,1),np.eye(n)*2)
-#for t in range(T):
-#    S.A[t]=np.array([[0.9,0.1,-0.1,-0.01],[-0.01,1,-0.01,0],[0.0,0.1,1.0,-0.1],[0,-0.1,-0.1,1]]).reshape(4,4)
-#    S.B[t]=np.array([[-0.01,0.02,0,0.3]]).reshape(4,1)
-#    S.C[t]=np.array([[1,0,0,0]]).reshape(1,4)
-#    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.1)
-#    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.1)
-    
+
 S=system()
-n=20
+n=6
 m=1
 o=1
-T=55
-np.random.seed(0)
-S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
-B=np.random.randint(0,2,size=(n,m))
-B[0,0]=0
-A=1*np.eye(n)+np.random.normal(size=(n,n))*0.01
+T=48
+#np.random.seed(1)
+S.X0=zonotope(np.array(([0,0,0,0,0,0])).reshape(6,1),np.eye(n)*1)
 for t in range(T):
-    S.A[t]=A
-    S.B[t]=B
-    S.C[t]=np.zeros((o,n))
-    S.C[t][0,0]=1
-    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.01)
-    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.01)
+    S.A[t]=np.array([[0.28,0.25,-0.19,-0.22,0.03,-0.50],
+                     [0.25,-0.47,0.30,0.17,-0.11,-0.11],
+                     [-0.19,0.30,0.46,0.09,-0.02,-0.08],
+                     [-0.22,0.17,0.09,0.60,-0.06,0.14],
+                     [0.03,-0.11,-0.02,-0.06,0.46,-0.13],
+                     [-0.50,-0.11,-0.08,0.14,-0.13,-0.23]]).reshape(6,6)
+    S.B[t]=np.array([[1.0159,0,0.5988,1.8641,0,-1.2155]]).reshape(6,1)
+    #S.C[t]=np.array([[1.292,0,0,0.2361,0.8428,0]]).reshape(1,6)
+    S.C[t]=np.array([[1.29,0.24,0,0,0,0]]).reshape(1,6)
+    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.05)
+    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.05)
 
-S.U_set=zonotope(np.zeros((m,1)),np.eye(m)*2)
+S.U_set=zonotope(np.zeros((m,1)),np.eye(m)*1)
 S.construct_dimensions()
 S.construct_E()
 M,N,Z=reduced_order(S,T-1)
@@ -56,10 +44,10 @@ S.Z=Z
 S.M=M
 S.N=N
 
-test_controllability(A,B)
-test_controllability(A.T,S.C[0].T)
-S.K,J_c=PC.DiscreteTimeLinearQuadraticRegulator(A,B,100*np.eye(n),np.eye(m))
-S.L,J_o=PC.DiscreteTimeLinearQuadraticRegulator(A.T,S.C[0].T,100*np.eye(n),np.eye(o))
+test_controllability(S.A[0],S.B[0])
+test_controllability(S.A[0].T,S.C[0].T)
+S.K,J_c=PC.DiscreteTimeLinearQuadraticRegulator(S.A[0],S.B[0],100*np.eye(n),np.eye(m))
+S.L,J_o=PC.DiscreteTimeLinearQuadraticRegulator(S.A[0].T,S.C[0].T,100*np.eye(n),np.eye(o))
 
 
 import matplotlib.pyplot as plt0
@@ -80,7 +68,7 @@ if False:
 else:
     error_construction(S,T+1,q0=1)
     order_reduction_error(S,T+1,q=2)
-    synthesis_disturbance_feedback(S,T=T,y_goal=Goal,control_bound=False)
+    synthesis_disturbance_feedback(S,T=T,y_goal=Goal,control_bound=True)
 
     
 #raise 1

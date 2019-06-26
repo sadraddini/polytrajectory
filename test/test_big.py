@@ -14,7 +14,7 @@ from pypolycontain.lib.zonotope_order_reduction.methods import G_cut,Girard_hull
 from pypolytrajectory.synthesis import synthesis,zonotopic_controller
 
 S=system()
-n=25
+n=4
 m=1
 o=1
 T=55
