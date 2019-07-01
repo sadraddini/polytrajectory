@@ -12,8 +12,8 @@ from pypolytrajectory.reduction import reduced_order,order_reduction_error,error
 from pypolycontain.lib.objects import zonotope
 from pypolycontain.lib.zonotope_order_reduction.methods import G_cut,Girard
 from pypolytrajectory.synthesis import synthesis_disturbance_feedback,zonotopic_controller,synthesis
+from pypolytrajectory.system import LQG
 
-import pydrake.systems.controllers as PC
 
 #S=system()
 #n=4
@@ -30,7 +30,7 @@ import pydrake.systems.controllers as PC
 #    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.1)
     
 S=system()
-n=20
+n=100
 m=1
 o=1
 T=55
@@ -38,7 +38,7 @@ np.random.seed(0)
 S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
 B[0,0]=0
-A=1*np.eye(n)+np.random.normal(size=(n,n))*0.01
+A=0.95*np.eye(n)+np.random.normal(size=(n,n))*0.01
 for t in range(T):
     S.A[t]=A
     S.B[t]=B
@@ -56,11 +56,11 @@ S.Z=Z
 S.M=M
 S.N=N
 
-test_controllability(A,B)
-test_controllability(A.T,S.C[0].T)
-S.K,J_c=PC.DiscreteTimeLinearQuadraticRegulator(A,B,100*np.eye(n),np.eye(m))
-S.L,J_o=PC.DiscreteTimeLinearQuadraticRegulator(A.T,S.C[0].T,100*np.eye(n),np.eye(o))
-
+#test_controllability(A,B)
+#test_controllability(A.T,S.C[0].T)
+#S.K,J_c=PC.DiscreteTimeLinearQuadraticRegulator(A,B,100*np.eye(n),np.eye(m))
+#S.L,J_o=PC.DiscreteTimeLinearQuadraticRegulator(A.T,S.C[0].T,100*np.eye(n),np.eye(o))
+S.L,S.K=LQG(A,B,S.C[0],S.W[0].G,S.V[0].G,100*np.eye(n),np.eye(m))
 
 import matplotlib.pyplot as plt0
 plt0.plot(range(T-1),[np.linalg.norm(Z[t].G[0,:],1) for t in range(T-1)],LineWidth=2,color='green')
@@ -91,7 +91,8 @@ def simulate_observer(sys,x_0,T):
     zeta_v=np.ones((sys.o,1))*(-1)**np.random.randint(1,3)
     v[0]=np.dot(sys.V[0].G,zeta_v)+sys.V[0].x
     y[0]=np.dot(sys.C[0],x[0])+v[0]    
-    x_observer[0]=np.dot(np.linalg.pinv(S.C[0]),y[0])
+    #x_observer[0]=np.dot(np.linalg.pinv(S.C[0]),y[0])
+    x_observer[0]=x_0
     for t in range(T+1):
         print "simulating observer time:",t
         zeta_w,zeta_v=2*(np.random.random((sys.n,1))-0.5),2*(np.random.random((sys.o,1))-0.5)
@@ -105,7 +106,7 @@ def simulate_observer(sys,x_0,T):
         x[t+1]=np.dot(sys.A[t],x[t])+np.dot(sys.B[t],u[t])+w[t]
         y[t+1]=np.dot(sys.C[t+1],x[t+1])+v[t+1]
         x_observer[t+1]=np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])+\
-            np.dot(sys.L.T,y[t+1]-np.dot(sys.C[t+1],np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])))
+            np.dot(sys.L,y[t+1]-np.dot(sys.C[t+1],np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])))
         print "control",t,u[t],u[t].shape
     return x,y,u,v,w,x_observer
 
@@ -152,7 +153,7 @@ ax0.set_title(r'Reachable Outputs Over Time')
 ax1.set_xlabel(r'time')
 ax1.set_ylabel(r'$u$')
 ax1.set_title(r'Possible Control Inputs Over Time')
-for i in range(5):
+for i in range(2):
     zeta_x=2*(np.random.random((S.n,1))-0.5)
     x_0=np.dot(S.X0.G,zeta_x)+S.X0.x
     x,y,u,v,w=simulate(S,x_0,T)

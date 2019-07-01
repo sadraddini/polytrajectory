@@ -118,10 +118,10 @@ def synthesis_disturbance_feedback(sys,T,y_goal,control_bound=False):
     Z_f=zonotope(ybar[T],phi_E[T])
     # Cost!
     for t in range(T):
-        prog.AddQuadraticCost(50*np.eye(sys.m),np.zeros(sys.m),ybar[t+1])
-        prog.AddQuadraticCost(5*np.trace(np.dot(phi_E[t].T,phi_E[t])))
+        prog.AddQuadraticCost(1*np.eye(sys.m),np.zeros(sys.m),ybar[t+1])
+        prog.AddQuadraticCost(100*np.trace(np.dot(phi_E[t].T,phi_E[t])))
         prog.AddQuadraticCost(1*np.eye(sys.m),np.zeros(sys.m),ubar[t])
-        prog.AddQuadraticCost(0.1*np.trace(np.dot(theta_E[t].T,theta_E[t])))
+        prog.AddQuadraticCost(1*np.trace(np.dot(theta_E[t].T,theta_E[t])))
     # Terminal Cost
     prog.AddQuadraticCost(100*np.trace(np.dot(phi_E[T].T,phi_E[T])))
     # Control subset
@@ -167,7 +167,7 @@ def zonotopic_controller(x_current,X,U):
     if result.is_success():
         print "controller solution found! with",result.GetSolution(epsilon)
         zeta_num=result.GetSolution(zeta).reshape(zeta.shape[0],1)  
-        print "zeta is",zeta_num.T,zeta_num.shape
+#        print "zeta is",zeta_num.T,zeta_num.shape
         return (np.dot(U.G,zeta_num)+U.x).reshape(U.x.shape[0],1)
     else:
         print result
@@ -194,7 +194,7 @@ def to_zonotope_control(A,B,c,x_current,X_next,U):
     result=gurobi_solver.Solve(prog,None,None)
     if result.is_success():
         print "controller solution found! with",result.GetSolution(epsilon)
-        zeta_num=result.GetSolution(zeta).reshape(zeta.shape[0],1)  
+#        zeta_num=result.GetSolution(zeta).reshape(zeta.shape[0],1)  
 #        print "zeta is",zeta_num.T,zeta_num.shape
         return np.dot(U.G,zeta_num)+U.x
     else:
