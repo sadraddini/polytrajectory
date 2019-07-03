@@ -119,7 +119,7 @@ def synthesis_disturbance_feedback(sys,T,y_goal,control_bound=False):
     # Cost!
     for t in range(T):
         prog.AddQuadraticCost(1*np.eye(sys.m),np.zeros(sys.m),ybar[t+1])
-        prog.AddQuadraticCost(100*np.trace(np.dot(phi_E[t].T,phi_E[t])))
+        prog.AddQuadraticCost(1*np.trace(np.dot(phi_E[t].T,phi_E[t])))
         prog.AddQuadraticCost(1*np.eye(sys.m),np.zeros(sys.m),ubar[t])
         prog.AddQuadraticCost(1*np.trace(np.dot(theta_E[t].T,theta_E[t])))
     # Terminal Cost

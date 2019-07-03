@@ -12,7 +12,7 @@ from pypolytrajectory.reduction import reduced_order,order_reduction_error,error
 from pypolycontain.lib.objects import zonotope
 from pypolycontain.lib.zonotope_order_reduction.methods import G_cut,Girard
 from pypolytrajectory.synthesis import synthesis_disturbance_feedback,zonotopic_controller,synthesis
-from pypolytrajectory.system import LQG
+from pypolytrajectory.system import LQG_LTV,LTV
 
 
 #S=system()
@@ -29,16 +29,15 @@ from pypolytrajectory.system import LQG
 #    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.1)
 #    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.1)
     
-S=system()
-n=100
+S=LTV()
+n=50
 m=1
 o=1
 T=55
-np.random.seed(0)
 S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
 B[0,0]=0
-A=0.95*np.eye(n)+np.random.normal(size=(n,n))*0.01
+A=0.99*np.eye(n)+np.random.normal(size=(n,n))*0.01
 for t in range(T):
     S.A[t]=A
     S.B[t]=B
@@ -46,6 +45,9 @@ for t in range(T):
     S.C[t][0,0]=1
     S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.01)
     S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.01)
+    S.Q[t]=np.eye(n)*1
+    S.R[t]=np.eye(m)*1
+S.F_cost=np.eye(n)*0.01
 
 S.U_set=zonotope(np.zeros((m,1)),np.eye(m)*2)
 S.construct_dimensions()
@@ -60,7 +62,7 @@ S.N=N
 #test_controllability(A.T,S.C[0].T)
 #S.K,J_c=PC.DiscreteTimeLinearQuadraticRegulator(A,B,100*np.eye(n),np.eye(m))
 #S.L,J_o=PC.DiscreteTimeLinearQuadraticRegulator(A.T,S.C[0].T,100*np.eye(n),np.eye(o))
-S.L,S.K=LQG(A,B,S.C[0],S.W[0].G,S.V[0].G,100*np.eye(n),np.eye(m))
+
 
 import matplotlib.pyplot as plt0
 plt0.plot(range(T-1),[np.linalg.norm(Z[t].G[0,:],1) for t in range(T-1)],LineWidth=2,color='green')
@@ -70,6 +72,8 @@ plt0.plot(range(T-1),[np.linalg.norm(Z[t].G[0,:],1) for t in range(T-1)],'o',Mar
 Goal=zonotope(np.ones((1,1))*0,np.eye(1)*1)
 
 T=45
+S.L,S.K=LQG_LTV(S,T)
+
 if False:
     for t in range(T+2):
         print t,"-zonotope reduction"
@@ -83,56 +87,66 @@ else:
     synthesis_disturbance_feedback(S,T=T,y_goal=Goal,control_bound=False)
 
     
-#raise 1
-def simulate_observer(sys,x_0,T):
-    x,y,u,v,w,x_observer={},{},{},{},{},{}
+def generate_random_disturbance(sys,T,method="guassian"):
+    w,v={},{}
+    if method=="guassian":
+        for t in range(T+1):
+            w[t]=np.random.multivariate_normal(mean=sys.W[t].x.reshape(sys.n),cov=sys.W[t].G).reshape(sys.n,1)
+            v[t]=np.random.multivariate_normal(mean=sys.V[t].x.reshape(sys.o),cov=sys.V[t].G).reshape(sys.o,1)
+    elif method=="uniform":
+         for t in range(T+1):
+            zeta_w,zeta_v=2*(np.random.random((sys.n,1))-0.5),2*(np.random.random((sys.o,1))-0.5)
+            v[t]=np.dot(sys.V[t].G,zeta_v)+sys.V[t].x
+            w[t]=np.dot(sys.W[t].G,zeta_w)+sys.W[t].x
+    elif method=="extreme":
+        for t in range(T+1):
+            zeta_w=np.ones((sys.n,1))*(-1)**np.random.randint(1,3)
+            zeta_v=np.ones((sys.o,1))*(-1)**np.random.randint(1,3)
+            v[t]=np.dot(sys.V[t].G,zeta_v)+sys.V[t].x
+            w[t]=np.dot(sys.W[t].G,zeta_w)+sys.W[t].x
+    else:
+        raise NotImplementedError
+    return w,v
+
+
+def simulate_observer(sys,x_0,T,w,v):
+    x,y,u,x_observer={},{},{},{}
     x[0]=x_0
-    zeta_w,zeta_v=2*(np.random.random((sys.n,1))-0.5),2*(np.random.random((sys.o,1))-0.5)
-    zeta_v=np.ones((sys.o,1))*(-1)**np.random.randint(1,3)
-    v[0]=np.dot(sys.V[0].G,zeta_v)+sys.V[0].x
+    np.random.seed(0)
     y[0]=np.dot(sys.C[0],x[0])+v[0]    
     #x_observer[0]=np.dot(np.linalg.pinv(S.C[0]),y[0])
-    x_observer[0]=x_0
+    x_observer[0]=sys.X0.x
     for t in range(T+1):
-        print "simulating observer time:",t
-        zeta_w,zeta_v=2*(np.random.random((sys.n,1))-0.5),2*(np.random.random((sys.o,1))-0.5)
-        zeta_w=np.ones((sys.n,1))*(-1)**np.random.randint(1,3)
-        zeta_v=np.ones((sys.o,1))*(-1)**np.random.randint(1,3)
-        v[t+1]=np.dot(sys.V[t+1].G,zeta_v)+sys.V[t+1].x
-        w[t]=np.dot(sys.W[t].G,zeta_w)+sys.W[t].x
+#        print "simulating observer time:",t
         if t==T:
-            return x,y,u,v,w,x_observer
-        u[t]=np.dot(-S.K,x_observer[t])
+            return x,y,u,x_observer
+        u[t]=np.dot(-S.K[t],x_observer[t])
         x[t+1]=np.dot(sys.A[t],x[t])+np.dot(sys.B[t],u[t])+w[t]
         y[t+1]=np.dot(sys.C[t+1],x[t+1])+v[t+1]
         x_observer[t+1]=np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])+\
-            np.dot(sys.L,y[t+1]-np.dot(sys.C[t+1],np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])))
-        print "control",t,u[t],u[t].shape
-    return x,y,u,v,w,x_observer
+            np.dot(sys.L[t],y[t+1]-np.dot(sys.C[t+1],np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])))
+#        print "control",t,u[t],u[t].shape
 
-def simulate(sys,x_0,T):
-    x,y,u,v,w={},{},{},{},{}
+def simulate(sys,x_0,T,w,v):
+    x,y,u={},{},{}
     x[0]=x_0
+    np.random.seed(0)
     for t in range(T+1):
-        print "simulating time:",t
-        zeta_w,zeta_v=2*(np.random.random((sys.n,1))-0.5),2*(np.random.random((sys.o,1))-0.5)
-        zeta_w=np.ones((sys.n,1))*(-1)**np.random.randint(1,3)
-        zeta_v=np.ones((sys.o,1))*(-1)**np.random.randint(1,3)
-        v[t]=np.dot(sys.V[t].G,zeta_v)+sys.V[t].x
-        w[t]=np.dot(sys.W[t].G,zeta_w)+sys.W[t].x
+#        print "simulating time:",t
         y[t]=np.dot(sys.C[t],x[t])+v[t]
         if t==T:
-            return x,y,u,v,w
+            return x,y,u
         Y=np.vstack([y[tau] for tau in range(t+1)])
         Ybar=np.vstack([sys.ybar[tau] for tau in range(t+1)])
         zono_Y=zonotope(Ybar,np.dot(sys.Phi[t],sys.E[t-1].G))
         zono_U=zonotope(sys.ubar[t],np.dot(sys.theta[t],sys.E[t-1].G))
         u[t]=zonotopic_controller(Y,zono_Y,zono_U)
 #        u[t]=np.zeros((sys.m,1))
-        print "control",t,u[t],u[t].shape
+#        print "control",t,u[t],u[t].shape
         x[t+1]=np.dot(sys.A[t],x[t])+np.dot(sys.B[t],u[t])+w[t]  
-    return x,y,u,v,w
-
+        
+    
+    
 import matplotlib.pyplot as plt
 fig0, ax0 = plt.subplots()
 fig1, ax1 = plt.subplots()
@@ -153,11 +167,12 @@ ax0.set_title(r'Reachable Outputs Over Time')
 ax1.set_xlabel(r'time')
 ax1.set_ylabel(r'$u$')
 ax1.set_title(r'Possible Control Inputs Over Time')
-for i in range(2):
+for i in range(1):
     zeta_x=2*(np.random.random((S.n,1))-0.5)
     x_0=np.dot(S.X0.G,zeta_x)+S.X0.x
-    x,y,u,v,w=simulate(S,x_0,T)
-    x_o,y_o,u_o,v_o,w_o,x_observer=simulate_observer(S,x_0,T)
+    w,v=generate_random_disturbance(S,T,method="extreme")
+    x,y,u=simulate(S,x_0,T,w,v)
+    x_o,y_o,u_o,x_observer=simulate_observer(S,x_0,T,w,v)
     # X axis
     ax0.plot(range(T+1),[np.asscalar(y[t]) for t in range(T+1)],'.',color='red')
     ax0.plot(range(T+1),[np.asscalar(y[t]) for t in range(T+1)],'-',color='red')
@@ -170,3 +185,7 @@ for i in range(2):
     for i in range(n):
         ax2.plot(range(T),[x_o[t][i,0]-x_observer[t][i,0] for t in range(T)],'-',color='blue')
         ax2.plot(range(T),[x_o[t][i,0]-x_observer[t][i,0] for t in range(T)],'.',color='blue')
+    J_o=sum([np.asscalar(y_o[t])**2+np.asscalar(u_o[t])**2 for t in range(T)])
+    J=sum([np.asscalar(y[t])**2+np.asscalar(u[t])**2 for t in range(T)])
+    print "LQG Cost is",J_o
+    print "My Cost is",J

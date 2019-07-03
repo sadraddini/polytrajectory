@@ -40,43 +40,18 @@ class LTI:
                 K=(B'SB+R)^-1 B'SA
                 L=PC'(CPC'+W)^-1
         """
-        P=DARE(A=self.A.T,B=self.C.T,Q=self.V,R=self.W)
-        S=DARE(A=self.A,B=self.B,Q=Q,R=R)
-        X=np.linalg.multi_dot([self.B.T,S,self.B])
-        K=np.linalg.multi_dot([np.linalg.inv(X),self.B.T,S,self.A])
-        Y=np.linalg.multi_dot([self.C,P,self.C.T])
-        L=np.linalg.multi_dot([P,self.C.T,np.linalg.inv(Y)])
-        return K,L
-        
-def LQG(A,B,C,W,V,Q,R):
-    """
-    The optimal infinite-time linear quadratic regulator.
-    The euqations are here:
-        https://en.wikipedia.org/wiki/Linear%E2%80%93quadratic%E2%80%93Gaussian_control
-    """
-    P=DARE(A=A.T,B=C.T,Q=W,R=V)
-    S=DARE(A=A,B=B,Q=Q,R=R)
-    X=np.linalg.multi_dot([B.T,S,B])+R
-    K=np.linalg.multi_dot([np.linalg.inv(X),B.T,S,A])
-    Y=np.linalg.multi_dot([C,P,C.T])+V
-    L=np.linalg.multi_dot([A,P,C.T,np.linalg.inv(Y)])
-    return L,K
-
-            
-class LTV:
-    """
-    LTV systems in the form of:
-        x_{t+1} = A_t x_t + B_t u_t + w_t
-           y_t  = C_t x_t + v_t
+        return LQG(self.A,self.B,self.C,self.W,self.V,self.Q,self.R)
     
-    We assume \W_t and \V_t are given polytopes (zonotopes)
-    """
+class LTV:
     def __init__(self):
         self.A={} # A_t
         self.B={} # B_t
         self.W={} # Zonotopes
         self.C={} # C_t
         self.V={} # Zonotopes
+        self.R={} # R_t
+        self.Q={} # Q_t
+        self.F=None
         
     def construct_dimensions(self):
         self.n,self.m,self.o=self.B[0].shape[0],self.B[0].shape[1],self.C[0].shape[0]
@@ -109,3 +84,41 @@ class LTV:
                     np.hstack(( np.dot(self.C[t],self.E["w",t-1]),np.zeros((self.o,self.n)) )) ))
         for t in range(T):
             self.F["v",t]=spa.block_diag(*[0*np.eye(self.o*t),np.eye(self.o)])
+            
+        
+def LQG(A,B,C,W,V,Q,R):
+    """
+    The optimal infinite-time linear quadratic regulator.
+    The euqations are here:
+        https://en.wikipedia.org/wiki/Linear%E2%80%93quadratic%E2%80%93Gaussian_control
+    """
+    P=DARE(A=A.T,B=C.T,Q=W,R=V)
+    S=DARE(A=A,B=B,Q=Q,R=R)
+    X=np.linalg.multi_dot([B.T,S,B])+R
+    K=np.linalg.multi_dot([np.linalg.inv(X),B.T,S,A])
+    Y=np.linalg.multi_dot([C,P,C.T])+V
+    L=np.linalg.multi_dot([A,P,C.T,np.linalg.inv(Y)])
+    return L,K
+
+def LQG_LTV(sys,T):
+    """
+    Linear Time-Varying Linear Quadratic Guassiang Control
+    We solve the Riccati difference equations
+    """
+    P,S,L,K={},{},{},{}
+    P[0]=sys.X0.G
+    S[T]=sys.F_cost
+    for t in range(T+1):
+        alpha=np.linalg.multi_dot([sys.C[t],P[t],sys.C[t].T])+sys.V[t].G
+        beta=P[t]-np.linalg.multi_dot([P[t],sys.C[t].T,np.linalg.inv(alpha),sys.C[t],P[t]])
+        P[t+1]=np.linalg.multi_dot([sys.A[t],beta,sys.A[t].T])+sys.W[t].G
+    for t in range(T-1,-1,-1):
+        alpha=np.linalg.multi_dot([sys.B[t].T,S[t+1],sys.B[t]])+sys.R[t]
+        beta=S[t+1]-np.linalg.multi_dot([S[t+1],sys.B[t],np.linalg.inv(alpha),sys.B[t].T,S[t+1]])
+        S[t]=np.linalg.multi_dot([sys.A[t].T,beta,sys.A[t]])+sys.Q[t]
+    for t in range(T+1):
+        X=np.linalg.multi_dot([sys.B[t].T,S[t],sys.B[t]])+sys.R[t]
+        K[t]=np.linalg.multi_dot([np.linalg.inv(X),sys.B[t].T,S[t],sys.A[t]])
+        Y=np.linalg.multi_dot([sys.C[t],P[t],sys.C[t].T])+sys.V[t].G
+        L[t]=np.linalg.multi_dot([sys.A[t],P[t],sys.C[t].T,np.linalg.inv(Y)])
+    return L,K    
