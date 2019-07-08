@@ -56,6 +56,35 @@ class LTV:
     def construct_dimensions(self):
         self.n,self.m,self.o=self.B[0].shape[0],self.B[0].shape[1],self.C[0].shape[0]
     
+    def Output_Evolution(self,T=0):
+        self.P={}
+        if T==0:
+            T=max(self.A.keys())+1
+        # Construct P_x
+        self.P["x",1]=self.A[0]
+        for t in range(1,T):
+            self.P["x",t+1]=np.dot(self.A[t],self.E["x",t-1])
+        # Construct P_u
+        self.E["u",1]=self.B[0]
+        for t in range(1,T):
+            self.E["u",t]=np.hstack( (np.dot(self.A[t],self.E["u",t-1]),self.B[t] ))
+        # Construct E_u
+        self.E["w",0]=np.eye(self.n)
+        for t in range(1,T):
+            self.E["w",t]=np.hstack(( np.dot(self.A[t],self.E["w",t-1]),np.eye(self.n) )) 
+        self.F={}
+        for t in range(T):
+            self.F["x",t]=np.vstack(([self.C[0]]+[np.dot(self.C[tau],self.E["x",tau-1]) for tau in range(1,t+1)] ))
+        self.F["u",0]=np.zeros((self.o,self.m))
+        self.F["w",0]=np.zeros((self.o,self.n))
+        for t in range(1,T):
+            self.F["u",t]=np.vstack(( np.hstack((self.F["u",t-1], np.zeros((self.o*(t),self.m)))),\
+                    np.hstack(( np.dot(self.C[t],self.E["u",t-1]),np.zeros((self.o,self.m)) )) ))
+            self.F["w",t]=np.vstack(( np.hstack((self.F["w",t-1], np.zeros((self.o*(t),self.n)))),\
+                    np.hstack(( np.dot(self.C[t],self.E["w",t-1]),np.zeros((self.o,self.n)) )) ))
+        for t in range(T):
+            self.F["v",t]=spa.block_diag(*[0*np.eye(self.o*t),np.eye(self.o)])
+            
     def construct_E(self,T=0):
         self.E={}
         if T==0:
@@ -97,12 +126,12 @@ def LQG(A,B,C,W,V,Q,R):
     X=np.linalg.multi_dot([B.T,S,B])+R
     K=np.linalg.multi_dot([np.linalg.inv(X),B.T,S,A])
     Y=np.linalg.multi_dot([C,P,C.T])+V
-    L=np.linalg.multi_dot([A,P,C.T,np.linalg.inv(Y)])
+    L=np.linalg.multi_dot([P,C.T,np.linalg.inv(Y)])
     return L,K
 
 def LQG_LTV(sys,T):
     """
-    Linear Time-Varying Linear Quadratic Guassiang Control
+    Linear Time-Varying Linear Quadratic Guassian Control
     We solve the Riccati difference equations
     """
     P,S,L,K={},{},{},{}
@@ -116,9 +145,11 @@ def LQG_LTV(sys,T):
         alpha=np.linalg.multi_dot([sys.B[t].T,S[t+1],sys.B[t]])+sys.R[t]
         beta=S[t+1]-np.linalg.multi_dot([S[t+1],sys.B[t],np.linalg.inv(alpha),sys.B[t].T,S[t+1]])
         S[t]=np.linalg.multi_dot([sys.A[t].T,beta,sys.A[t]])+sys.Q[t]
+    for t in range(T):
+        X=np.linalg.multi_dot([sys.B[t].T,S[t+1],sys.B[t]])+sys.R[t]
+        K[t]=np.linalg.multi_dot([np.linalg.inv(X),sys.B[t].T,S[t+1],sys.A[t]])
     for t in range(T+1):
-        X=np.linalg.multi_dot([sys.B[t].T,S[t],sys.B[t]])+sys.R[t]
-        K[t]=np.linalg.multi_dot([np.linalg.inv(X),sys.B[t].T,S[t],sys.A[t]])
         Y=np.linalg.multi_dot([sys.C[t],P[t],sys.C[t].T])+sys.V[t].G
-        L[t]=np.linalg.multi_dot([sys.A[t],P[t],sys.C[t].T,np.linalg.inv(Y)])
+#        L[t]=np.linalg.multi_dot([sys.A[t],P[t],sys.C[t].T,np.linalg.inv(Y)])
+        L[t]=np.linalg.multi_dot([P[t],sys.C[t].T,np.linalg.inv(Y)])
     return L,K    
