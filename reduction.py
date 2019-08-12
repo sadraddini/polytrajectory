@@ -21,6 +21,41 @@ gurobi_solver=Gurobi_drake.GurobiSolver()
 OSQP_solver=OSQP_drake.OsqpSolver()
 
 
+
+
+
+def reduced_order_new(sys,T):
+    M,N,Z={},{},{}
+    for t in range(T):
+        # 1: intiial state
+        Omega_1=np.dot(sys.Q["x",t],sys.X0.G)
+        e_1=np.dot(sys.C[t+1],sys.P["x",t+1])
+        Gamma_1=np.dot(e_1,sys.X0.G)
+        gamma_1=np.dot(e_1,sys.X0.x)
+        # 2: process noice
+        K_2=np.dot(sys.Q["w",t],spa.block_diag(*[sys.W[t].G for tau in range(0,t+1)]))
+        e_2=np.dot(sys.C[t+1],sys.E["w",t])
+        L_2=np.dot(e_2,spa.block_diag(*[sys.W[t].G for tau in range(0,t+1)]))
+        # 3: observation noise
+        K_3=np.dot(sys.F["v",t],spa.block_diag(*[sys.V[t].G for tau in range(0,t+1)]))
+        L_3=np.zeros((sys.o,K_3.shape[1]))
+        # Build the L and K matrices: L=M*K
+        L=np.hstack((L_1,L_2,L_3))
+        K=np.hstack((K_1,K_2,K_3))
+        M[t]=np.dot(L,np.linalg.pinv(K))
+        N[t]=np.dot(sys.C[t+1],sys.E["u",t])-np.dot(M[t],sys.F["u",t])
+        Z[t]=zonotope(None,None)
+        Z[t].G=np.hstack((L-np.dot(M[t],K),sys.V[t+1].G))
+        Z[t].x=np.dot(e_1-np.dot(M[t],sys.F["x",t]),sys.X0.x)\
+            +np.dot(e_2-np.dot(M[t],sys.F["w",t]),np.vstack([sys.W[t].x for tau in range(0,t+1)]))\
+            +np.dot(np.dot(M[t],sys.F["v",t]),np.vstack([sys.V[t].x for tau in range(0,t+1)]))\
+            +sys.V[t+1].x
+        Z["X0",t]=L_1-np.dot(M[t],K_1)
+        Z["W",t]=L_2-np.dot(M[t],K_2)
+        Z["V",t]=np.hstack((L_3-np.dot(M[t],K_3),sys.V[t+1].G))
+    return M,N,Z
+
+
 def reduced_order(sys,T):
     M,N,Z={},{},{}
     for t in range(T):
