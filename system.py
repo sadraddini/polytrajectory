@@ -97,7 +97,7 @@ class LTV:
             self.Q["w",t+1]=triangular_stack(self.Q["w",t],\
                     np.hstack(( np.dot(self.C[t],self.P["w",t+1]),np.zeros((self.o,self.n)) )) )
         for t in range(T):
-            self.Q["v",t]=spa.block_diag(*[0*np.eye(self.o*t),np.eye(self.o)])
+            self.Q["v",t]=np.eye(self.o*(t+1))
             
     def _error_zonotopes(self,T=0):
         Sigma={}
@@ -234,9 +234,9 @@ def LQG_LTV(sys,T):
     P[0]=sys.X0.G
     S[T]=sys.F_cost
     for t in range(T+1):
-        alpha=np.linalg.multi_dot([sys.C[t],P[t],sys.C[t].T])+sys.V[t].G**2
+        alpha=np.linalg.multi_dot([sys.C[t],P[t],sys.C[t].T])+sys.V[t].G
         beta=P[t]-np.linalg.multi_dot([P[t],sys.C[t].T,np.linalg.inv(alpha),sys.C[t],P[t]])
-        P[t+1]=np.linalg.multi_dot([sys.A[t],beta,sys.A[t].T])+sys.W[t].G**2
+        P[t+1]=np.linalg.multi_dot([sys.A[t],beta,sys.A[t].T])+sys.W[t].G
     for t in range(T-1,-1,-1):
         alpha=np.linalg.multi_dot([sys.B[t].T,S[t+1],sys.B[t]])+sys.RR[t]
         beta=S[t+1]-np.linalg.multi_dot([S[t+1],sys.B[t],np.linalg.inv(alpha),sys.B[t].T,S[t+1]])

@@ -11,26 +11,25 @@ from pypolytrajectory.LTV import system,test_controllability
 from pypolytrajectory.reduction import reduced_order,order_reduction_error,error_construction,error_construction_old
 from pypolycontain.lib.objects import zonotope
 from pypolycontain.lib.zonotope_order_reduction.methods import G_cut,Girard
-from pypolytrajectory.synthesis import synthesis_disturbance_feedback,zonotopic_controller,synthesis,zonotopic_controller_soft,\
-    output_feedback_synthesis,outputfeedback_synthesis_zonotope_solution,output_feedback_synthesis_lightweight,\
+from pypolytrajectory.synthesis import output_feedback_synthesis,outputfeedback_synthesis_zonotope_solution,output_feedback_synthesis_lightweight,\
     triangular_stack_list,output_feedback_synthesis_lightweight_many_variables
 from pypolytrajectory.system import LQG_LTV,LTV,LQG
 import scipy.linalg as spa
 
 
-np.random.seed(10)
+np.random.seed(0)
  
 S=LTV()
-n=20
+n=10
 m=1
 o=1
-z=2
+z=3
 T=58
 S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
 B[0,0]=1
 B[1,0]=0
-A=0.8*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.1
+A=0.9*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.15
 C=np.zeros((o,n))
 C[0,0]=1
 #C[1,1]=1
@@ -49,8 +48,8 @@ for t in range(T):
     S.C[t]=C
     S.D[t]=D
     S.d[t]=np.zeros((z,1))
-    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.01)
-    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.01)
+    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.001)
+    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.001)
     S.QQ[t]=np.eye(n)*1
     S.RR[t]=np.eye(m)*1
 S.F_cost=np.eye(n)*0.00
@@ -146,7 +145,7 @@ plt0.grid(lw=0.2,color=(0.2,0.3,0.2))
 #print np.linalg.norm(eye2-np.eye(n),"fro") 
 
 
-T=40
+T=30
 #pi,J=output_feedback_synthesis_lightweight(S,T=T)
 #a=J.Jacobian(pi[3])
 #raise 1
@@ -186,8 +185,8 @@ def generate_random_disturbance(sys,T,method="guassian"):
             w[t]=np.dot(sys.W[t].G,zeta_w)+sys.W[t].x
     elif method=="extreme":
         for t in range(T+1):
-            zeta_w=np.ones((sys.n,1))*(-1)**np.random.randint(1,3)
-            zeta_v=np.ones((sys.o,1))*(-1)**np.random.randint(1,3)
+            zeta_w=np.ones((sys.n,1))*(-1)**np.random.randint(1,2)
+            zeta_v=np.ones((sys.o,1))*(-1)**np.random.randint(1,2)
             v[t]=np.dot(sys.V[t].G,zeta_v)+sys.V[t].x
             w[t]=np.dot(sys.W[t].G,zeta_w)+sys.W[t].x
     elif method=="zero":
@@ -274,6 +273,7 @@ def simulate_and_cost_evaluate(N=1,disturbance_method="extreme"):
         
         
 def simulate_and_plot(N=1,disturbance_method="extreme"):
+    np.random.seed()
     import matplotlib.pyplot as plt
     fig0, ax0 = plt.subplots()
     fig1, ax1 = plt.subplots()
@@ -284,12 +284,12 @@ def simulate_and_plot(N=1,disturbance_method="extreme"):
     for t in range(T+1):
         y_minus.append(np.asscalar(Z[t].x[0,0]-np.linalg.norm(Z[t].G[0,:],ord=1)))
         y_plus.append(np.asscalar(Z[t].x[0,0]+np.linalg.norm(Z[t].G[0,:],ord=1)))
-    ax0.fill_between(range(T+1),y_minus,y_plus,alpha=0.5,color='red')
+    ax0.fill_between(range(T+1),y_minus,y_plus,alpha=0.5,color='orange')
     y_minus,y_plus,u_minus,u_plus=[],[],[],[]
     for t in range(T):
         u_minus.append(np.asscalar(U[t].x[0,0]-np.linalg.norm(U[t].G[0,:],ord=1)))
         u_plus.append(np.asscalar(U[t].x[0,0]+np.linalg.norm(U[t].G[0,:],ord=1)))
-    ax1.fill_between(range(T),u_minus,u_plus,color='green',alpha=0.5)
+    ax1.fill_between(range(T),u_minus,u_plus,color='purple',alpha=0.5)
     ax0.set_xlabel(r'time',fontsize=26)
     ax0.set_ylabel(r'$x_1$',fontsize=26)
     ax0.set_title(r'Reachable Outputs Over Time',fontsize=26)
@@ -326,6 +326,7 @@ def simulate_and_plot(N=1,disturbance_method="extreme"):
     return J
 
 J=simulate_and_plot(N=1,disturbance_method="extreme")
+
 #J={}
 #N=20
 #J["extreme"]=simulate_and_cost_evaluate(N,disturbance_method="extreme")
