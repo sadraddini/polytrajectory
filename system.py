@@ -61,6 +61,9 @@ class LTV:
         self.F={} # F_t estimation error
         self.M,self.N,self.R,self.S={},{},{},{}
         self.Xi={} # The zonotope of xi
+        # LQG
+        self.L=[None]
+        self.K=[None]
         
         
     def construct_dimensions(self):

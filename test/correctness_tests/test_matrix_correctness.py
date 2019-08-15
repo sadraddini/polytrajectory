@@ -11,7 +11,7 @@ from pypolytrajectory.LTV import system,test_controllability
 from pypolytrajectory.reduction import reduced_order,order_reduction_error,error_construction,error_construction_old
 from pypolycontain.lib.objects import zonotope
 from pypolycontain.lib.zonotope_order_reduction.methods import G_cut,Girard
-from pypolytrajectory.synthesis import output_feedback_synthesis,outputfeedback_synthesis_zonotope_solution,output_feedback_synthesis_lightweight,\
+from pypolytrajectory.synthesis import output_feedback_synthesis,outputfeedback_synthesis_zonotope_solution,\
     triangular_stack_list,output_feedback_synthesis_lightweight_many_variables
 from pypolytrajectory.system import LQG_LTV,LTV,LQG
 import scipy.linalg as spa
@@ -19,10 +19,10 @@ import scipy.linalg as spa
 np.random.seed(0)
  
 S=LTV()
-n=3
+n=20
 m=1
 o=1
-z=3
+z=20
 T=58
 S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
@@ -47,8 +47,8 @@ for t in range(T):
     S.C[t]=C
     S.D[t]=D
     S.d[t]=np.zeros((z,1))
-    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.05)
-    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.05)
+    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.02)
+    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.00)
     S.QQ[t]=np.eye(n)*1
     S.RR[t]=np.eye(m)*1
 S.F_cost=np.eye(n)*0.00
@@ -67,8 +67,8 @@ X = [l.real for l in L]
 Y = [l.imag for l in L]
 plt.scatter(X,Y, color='red',s=50)
 N=200
-x,y=[np.cos(2*np.pi/N*i) for i in range(N)],[np.sin(2*np.pi/N*i) for i in range(N)]
-plt.plot(x,y,color='black')
+xx,yy=[np.cos(2*np.pi/N*i) for i in range(N)],[np.sin(2*np.pi/N*i) for i in range(N)]
+plt.plot(xx,yy,color='black')
 plt.axis("equal")
 plt.title(r"Location of Open-loop Poles")
 plt.show()
@@ -114,7 +114,7 @@ def generate_random_disturbance(sys,T,method="guassian"):
 
 
 def simulate_random(sys,x_0,T,w,v):
-    x,y,u,x_observer={},{},{},{}
+    x,y,u={},{},{}
     x[0]=x_0
     y[0]=np.dot(sys.C[0],x[0])+v[0]    
     for t in range(T+1):
@@ -126,25 +126,79 @@ def simulate_random(sys,x_0,T,w,v):
         y[t+1]=np.dot(sys.C[t+1],x[t+1])+v[t+1]
 #        print "control",t,u[t],u[t].shape
 
-T=30        
-x_0=np.random.random((S.n,1))
-w,v=generate_random_disturbance(S,T,"extreme")
-x,y,u=simulate_random(S,x_0,T,w,v)
 
-print "Now the check time"
-for t in range(T):
-    print t
-    Y=np.vstack([y[tau] for tau in range(t+1)])
-    U=np.vstack([u[tau] for tau in range(t+1)])
-    W=np.vstack([w[tau] for tau in range(t+1)])
-    V=np.vstack([v[tau] for tau in range(t+1)])
-#    print S.Q["x",t].shape, S.Q["w",t].shape,  S.Q["v",t].shape,  S.Q["u",t].shape, 
-    error_Y= Y-( np.dot(S.Q["x",t],x_0) + np.dot(S.Q["u",t],U) + np.dot(S.Q["w",t],W) + np.dot(S.Q["v",t],V) )
-    print "Y",t, np.linalg.norm(error_Y)
-#    print "Y",error_Y
-    if t>=1:
-        U=np.vstack([u[tau] for tau in range(t)])
-        W=np.vstack([w[tau] for tau in range(t)])
-        error_X= x[t]-( np.dot(S.P["x",t],x_0) + np.dot(S.P["u",t],U) + np.dot(S.P["w",t],W))
-        print "x",t, np.linalg.norm(error_X)
+if False:
+    T=30        
+    x_0=np.random.random((S.n,1))
+    w,v=generate_random_disturbance(S,T,"extreme")
+    x,y,u=simulate_random(S,x_0,T,w,v)
+    U,Y,W,V={},{},{},{}
+    print "Now the check time"
+    for t in range(T):
+        print t
+        Y[t]=np.vstack([y[tau] for tau in range(t+1)])
+        U[t]=np.vstack([u[tau] for tau in range(t+1)])
+        W[t]=np.vstack([w[tau] for tau in range(t+1)])
+        V[t]=np.vstack([v[tau] for tau in range(t+1)])
+    #    print S.Q["x",t].shape, S.Q["w",t].shape,  S.Q["v",t].shape,  S.Q["u",t].shape, 
+        error_Y= Y[t]-( np.dot(S.Q["x",t],x_0) + np.dot(S.Q["u",t],U[t]) + np.dot(S.Q["w",t],W[t]) + np.dot(S.Q["v",t],V[t]) )
+        print "Y",t, np.linalg.norm(error_Y)
+
     
+if True: 
+    T=30        
+    x_0=np.random.random((S.n,1))
+    w,v=generate_random_disturbance(S,T,"extreme")
+    x,y,e,u,E,U,Y,W,V,z,f={},{},{},{},{},{},{},{},{},{},{}
+    Theta,theta,Phi,phi={},{},{},{}
+    xi={}
+    for t in range(T):
+        theta[t]=1*(np.random.random((S.m,S.o*(t+1)))-0.5)
+    print "Now the check time"
+    phi[0]=np.eye(S.o)
+    x[0]=x_0
+    y[0]=np.dot(S.C[0],x[0])+v[0]
+    for t in range(T):
+        print t
+        if t==0:
+            xi[t]=y[0]
+        else:
+            xi[t]=np.vstack([y[0]]+[e[tau] for tau in range(t)])
+        u[t]=np.dot(theta[t],xi[t])
+        Y[t]=np.vstack([y[tau] for tau in range(t+1)])
+        U[t]=np.vstack([u[tau] for tau in range(t+1)])
+        W[t]=np.vstack([w[tau] for tau in range(t+1)])
+        V[t]=np.vstack([v[tau] for tau in range(t+1)])
+        Theta[t]=triangular_stack_list([theta[tau] for tau in range(t+1)])
+        Phi[t]=triangular_stack_list([phi[tau] for tau in range(t+1)])
+        x[t+1]=np.dot(S.A[t],x[t])+np.dot(S.B[t],u[t])+w[t]
+        y[t+1]=np.dot(S.C[t+1],x[t+1])+v[t+1]
+        error_Y= Y[t]-( np.dot(S.Q["x",t],x_0) + np.dot(S.Q["u",t],U[t]) + np.dot(S.Q["w",t],W[t]) + np.dot(S.Q["v",t],V[t]) )
+        print "Y",t, np.linalg.norm(error_Y)
+        if t>=1:
+            error_X= x[t]-( np.dot(S.P["x",t],x_0) + np.dot(S.P["u",t],U[t-1]) + np.dot(S.P["w",t],W[t-1]) )
+            print "x",t, np.linalg.norm(error_X)
+#        print "next y is", y[t+1]
+        e[t]=y[t+1]-np.dot(S.M[t],Y[t])-np.dot(S.N[t],U[t])
+        # e anpther
+        E0_anoher=np.dot(S.C[t+1],S.P["x",t+1])-np.dot(S.M[t],S.Q["x",t])
+        E1_another=np.dot(S.C[t+1],S.P["w",t+1])-np.dot(S.M[t],S.Q["w",t])
+        e_another=np.dot(E0_anoher,x_0)+np.dot(E1_another,W[t])
+        print "error_e_another",np.linalg.norm(e[t]-e_another)
+        # Look for phi
+        phi[t+1]=np.hstack((  np.dot(S.M[t],Phi[t]) + np.dot(S.N[t],Theta[t]) , np.eye(S.o) ))
+        x[t+1]=np.dot(S.A[t],x[t])+np.dot(S.B[t],u[t])+w[t]
+        Z0=np.linalg.multi_dot([S.R[t],Phi[t],S.Xi["x",t]]) + np.linalg.multi_dot([S.S[t],Theta[t],S.Xi["x",t]])\
+            +np.dot(S.D[t],S.P["x",t]) -  np.dot(S.R[t],S.Q["x",t])
+        Z1=np.linalg.multi_dot([S.R[t],Phi[t],S.Xi["w",t]]) + np.linalg.multi_dot([S.S[t],Theta[t],S.Xi["w",t]])\
+            +np.hstack(( np.dot(S.D[t],S.P["w",t]), np.zeros((S.z,S.n)) )) -  np.dot(S.R[t],S.Q["w",t])\
+                
+        z[t]=np.dot(Z0,x_0)+np.dot(Z1,W[t])
+        error_z=z[t]-np.dot(S.D[t],x[t])
+        print "error_z",np.linalg.norm(error_z)
+        # Let's do another experiment
+        f[t]=np.dot(S.D[t],x[t])-np.dot(S.R[t],Y[t])-np.dot(S.S[t],U[t])
+        Z0_another=np.dot(S.D[t],S.P["x",t]) - np.dot(S.R[t],S.Q["x",t])   
+        Z1_another=np.hstack(( np.dot(S.D[t],S.P["w",t]), np.zeros((S.z,S.n)) )) - np.dot(S.R[t],S.Q["w",t]) 
+        f_another=np.dot(Z0_another,x_0)+np.dot(Z1_another,W[t])
+        print "error_f_another",np.linalg.norm(f[t]-f_another)

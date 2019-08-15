@@ -1,10 +1,11 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jul  8 15:52:30 2019
+Created on Thu Aug 15 15:58:14 2019
 
 @author: sadra
 """
+
 
 import numpy as np
 from pypolytrajectory.LTV import system,test_controllability
@@ -16,7 +17,7 @@ from pypolytrajectory.synthesis import output_feedback_synthesis,outputfeedback_
 from pypolytrajectory.system import LQG_LTV,LTV,LQG
 import scipy.linalg as spa
 
-np.random.seed(5)
+np.random.seed(15)
 S=LTV()
 n=6
 m=1
@@ -27,7 +28,7 @@ S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
 #B[0,0]=1
 #B[1,0]=0
-A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.9
+A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*1
 C=np.zeros((o,n))
 C[0,0]=1
 #C[1,1]=1
@@ -46,8 +47,8 @@ for t in range(T):
     S.C[t]=C
     S.D[t]=D
     S.d[t]=np.zeros((z,1))
-    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.001)
-    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.001)
+    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.01)
+    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.01)
     S.QQ[t]=np.eye(n)*0
     S.RR[t]=np.eye(m)*1
     S.QQ[t][0,0]=1
@@ -76,15 +77,19 @@ plt.show()
 
 
 import matplotlib.pyplot as plt0
-plt0.plot(range(T-1),[np.linalg.norm(S.E[t].G[0,:],1) for t in range(T-1)],LineWidth=2,color='orange')
-plt0.plot(range(T-1),[np.linalg.norm(S.E[t].G[0,:],1) for t in range(T-1)],'o',MarkerSize=4,color='orange')
-plt0.title(r"Error Over Time")
+plt0.plot(range(T-1),[np.linalg.norm(S.E[t].G,"fro") for t in range(T-1)],LineWidth=2,color='red')
+plt0.plot(range(T-1),[np.linalg.norm(S.E[t].G,"fro") for t in range(T-1)],'o',MarkerSize=4,color='black')
+plt0.title(r"$\mathbb{E}_t$ Over Time",fontsize=20)
+plt0.xlabel(r"time",fontsize=20)
+plt0.ylabel(r"$tr(EE')$",fontsize=20)
 plt0.grid(lw=0.2,color=(0.2,0.3,0.2))
 
 import matplotlib.pyplot as plt1
-plt1.plot(range(T-1),[np.linalg.norm(S.F[t].G,"fro") for t in range(T-1)],LineWidth=3,color='red')
+plt1.plot(range(T-1),[np.linalg.norm(S.F[t].G,"fro") for t in range(T-1)],LineWidth=3,color='green')
 plt1.plot(range(T-1),[np.linalg.norm(S.F[t].G,"fro") for t in range(T-1)],'o',MarkerSize=4,color='black')
-plt1.title(r"Error Over Time")
+plt1.title(r"$\mathbb{F}_t$ Over Time",fontsize=20)
+plt1.xlabel(r"time",fontsize=20)
+plt1.ylabel(r"$tr(FF')$",fontsize=20)
 plt1.grid(lw=0.2,color=(0.2,0.3,0.2))
 
 
@@ -222,7 +227,7 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
     ax1.fill_between(range(T),u_minus,u_plus,color='purple',alpha=0.5)
     ax0.set_xlabel(r'time',fontsize=26)
     ax0.set_ylabel(r'$x_1$',fontsize=26)
-    ax0.set_title(r'Reachable Outputs Over Time',fontsize=26)
+    ax0.set_title(r'Performance Output Over Time',fontsize=26)
     ax1.set_xlabel(r'time',fontsize=26)
     ax1.set_ylabel(r'$u$',fontsize=26)
 #    ax1.set_title(r'Possible Control Inputs Over Time',fontsize=26)
@@ -250,12 +255,15 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
             ax0.plot(range(T+1),[np.asscalar(x[method][t][0,0]) for t in range(T+1)],'-',Linewidth=5,color=c[method],label=method)
             ax0.plot(range(T+1),[np.asscalar(x[method][t][0,0]) for t in range(T+1)],'o',Linewidth=5,color=c[method])
             ax0.plot(range(T+1),[0 for t in range(T+1)],'--',Linewidth=1,color="black")
+            ax0.grid(lw=0.2,color=(0.2,0.3,0.2))
         handles, labels = ax0.get_legend_handles_labels()
         ax0.legend(handles,labels,fontsize=20)
         for method in keys:
             ax1.plot(range(T),[np.asscalar(u[method][t][0,0]) for t in range(T)],'-',Linewidth=5,color=c[method],label=method)
             ax1.plot(range(T),[np.asscalar(u[method][t][0,0]) for t in range(T)],'o',Linewidth=5,color=c[method])
-            ax0.plot(range(T),[0 for t in range(T)],'--',Linewidth=1,color="black")
+            ax1.plot(range(T),[0 for t in range(T)],'--',Linewidth=1,color="black")
+            ax1.grid(lw=0.2,color=(0.2,0.3,0.2))
+
         handles, labels = ax0.get_legend_handles_labels()
         ax1.legend(handles,labels,fontsize=20)
         J={}
@@ -265,20 +273,3 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
     return J
 
 J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
-
-#J={}
-#N=20
-#J["extreme"]=simulate_and_cost_evaluate(N,disturbance_method="extreme")
-#J["guassian"]=simulate_and_cost_evaluate(N,disturbance_method="guassian")
-#
-#fig_J, axJ = plt.subplots()
-#fig_C, axC = plt.subplots()
-##plt_J.hist([J["guassian"][i]["TV-LQG"] for i in range(N)],color="blue",label="TV-LQG")
-###plt_J.hist([J["extreme"][i]["TI-LQG"] for i in range(N)],color="green",label="TI-LQG")
-##plt_J.hist([J["guassian"][i]["Our Method"] for i in range(N)],color="red",label="Our Method")
-#ratio_guassian=[J["guassian"][i]["Our Method"]/J["guassian"][i]["TV-LQG"] for i in range(N)]
-#ratio_extreme=[J["extreme"][i]["Our Method"]/J["extreme"][i]["TV-LQG"] for i in range(N)]
-#axJ.hist(ratio_guassian,color="red")
-#axC.hist(ratio_extreme,color="blue")
-#print "Guassian Ratio:",np.mean(np.array(ratio_guassian)),"variance:",np.var(np.array(ratio_guassian))
-#print "Extreme Ratio:",np.mean(np.array(ratio_extreme)),"variance:",np.var(np.array(ratio_extreme))

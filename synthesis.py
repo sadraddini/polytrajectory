@@ -98,92 +98,6 @@ def output_feedback_synthesis(sys,T):
         return u_tilde_n,theta_n
     else:
         print "Synthesis Failed!"            
-
-def output_feedback_synthesis_lightweight(sys,T):
-    prog=MP.MathematicalProgram()
-    # Add Variables
-    phi,theta,Phi,Theta={},{},{},{}
-    y_tilde,u_tilde={},{} 
-    Y_tilde,U_tilde={},{}
-    z_bar,u_bar={},{}
-    Z,U={},{} # Z matrices
-    Gz={}
-    # Initial Condition
-    y_tilde[0]=np.zeros((sys.o,1))
-    phi[0]=np.eye(sys.o)
-    # Main variables
-    for t in range(T):
-        theta[t]=prog.NewContinuousVariables(sys.m,sys.o*(t+1),"theta%d"%t)
-        u_tilde[t]=prog.NewContinuousVariables(sys.m,1,"u_tilde%d"%t)
-    for t in range(T+1):
-        Gz["var",t]=prog.NewContinuousVariables(sys.z,sys.Xi_reduced[t].G.shape[1],"Gz%d"%t)
-    # Now we the dynamics
-    Phi[0],Theta[0]=phi[0],theta[0]
-    theta[T]=np.zeros((sys.m,sys.o*(T+1)))
-    u_tilde[T]=np.zeros((sys.m,1))
-    for t in range(T):
-        Y_tilde[t]=np.vstack([y_tilde[tau] for tau in range(t+1)])
-        U_tilde[t]=np.vstack([u_tilde[tau] for tau in range(t+1)])
-        y_tilde[t+1]=np.dot(sys.M[t],Y_tilde[t])+np.dot(sys.N[t],U_tilde[t])
-        phi[t+1]=np.hstack(( np.dot(sys.M[t],Phi[t])+np.dot(sys.N[t],Theta[t]),np.eye(sys.o) ))
-        Phi[t+1]=triangular_stack(Phi[t],phi[t+1])
-        Theta[t+1]=triangular_stack(Theta[t],theta[t+1])
-    Y_tilde[T]=np.vstack([y_tilde[tau] for tau in range(T+1)])
-    U_tilde[T]=np.vstack([u_tilde[tau] for tau in range(T+1)])
-    # Performance variables
-    for t in range(T+1):
-        # Z zonotope
-        print "time construction",t
-        z_bar=np.linalg.multi_dot([sys.R[t],Y_tilde[t]])+\
-            np.linalg.multi_dot([sys.R[t],Phi[t],sys.Xi[t].x])+\
-            np.linalg.multi_dot([sys.S[t],U_tilde[t]])+\
-            np.linalg.multi_dot([sys.S[t],Theta[t],sys.Xi_reduced[t].x])+\
-            sys.F[t].x
-        Gz[t]=np.linalg.multi_dot([sys.R[t],Phi[t],sys.Xi_reduced[t].G])+\
-            np.linalg.multi_dot([sys.S[t],Theta[t],sys.Xi_reduced[t].G])
-        Z[t]=zonotope(z_bar,np.hstack((Gz[t],sys.F_reduced[t].G)))
-        prog.AddLinearConstraint(np.equal(Gz[t],Gz["var",t],dtype='object').flatten())
-    for t in range(T):
-        # U zonotope
-        u_bar=u_tilde[t]+np.dot(theta[t],sys.Xi_reduced[t].x)
-        Gu=np.dot(theta[t],sys.Xi_reduced[t].G)
-        U[t]=zonotope(u_bar,Gu)
-    # Proxy Linear Cost
-#    r=prog.NewContinuousVariables(1,1,"r")
-#    R=hyperbox(sys.z)
-#    ZT=H_polytope(R.H_polytope.H,np.dot(R.H_polytope.h,r),symbolic=True)
-#    print Z[T].G.shape,ZT
-#    subset(prog,Z[T],ZT)    
-    # Proxy Quadratic cost
-#    J=0
-#    for t in range(1,T):
-#        print t,"cost"
-#        J+=sum(U[t].x.flatten()**2)
-#        J+=sum(U[t].G.flatten()**2)
-#        J+=sum(Z[t].x.flatten()**2)
-#        J+=sum(Gz[t].flatten()**2)
-    print "Now adding the hugggggee Cost function"
-#    print Phi[5]
-#    print theta_all.shape
-#    a=J.Jacobian(theta_all)
-#    print a.shape
-#    raise 1
-#    return theta,J
-#    return J.Jacobian(theta[T-1].T)
-    for t in range(T):
-        prog.AddQuadraticCost(np.eye(theta[t].shape[1]),np.zeros(theta[t].shape[1]),theta[t].T)
-        prog.AddQuadraticCost(sum(Gz["var",t].flatten()**2))
-#    prog.AddLinearCost(1000*r[0,0])
-    print "Now solving the QP"
-    result=gurobi_solver.Solve(prog,None,None)
-    if result.is_success():
-        print "Synthesis Success!","\n"*5
-#        print "D=",result.GetSolution(D)
-        theta_n={t:result.GetSolution(theta[t]).reshape(theta[t].shape) for t in range(0,T)}
-        u_tilde_n={t:result.GetSolution(u_tilde[t]).reshape(u_tilde[t].shape) for t in range(0,T)}
-        return u_tilde_n,theta_n
-    else:
-        print "Synthesis Failed!"
         
 def output_feedback_synthesis_lightweight_many_variables(sys,T):
     prog=MP.MathematicalProgram()
@@ -251,25 +165,26 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T):
             ZT=H_polytope(R.H_polytope.H,np.dot(R.H_polytope.h,r["z",t]),symbolic=True)
             subset(prog,Z[t],ZT) 
 #            prog.AddLinearConstraint(np.less_equal(r["z",t],r["z-max"],dtype='object').flatten())
-            prog.AddLinearCost(r["z",t][0,0])
+            prog.AddQuadraticCost(r["z",t][0,0]*r["z",t][0,0])
         for t in range(T):
             print t,"adding cost for u"
             r["u",t]=prog.NewContinuousVariables(1,1,"r")
             R=hyperbox(sys.m)
             UT=H_polytope(R.H_polytope.H,np.dot(R.H_polytope.h,r["u",t]),symbolic=True)
             subset(prog,U[t],UT) 
-            prog.AddLinearCost(r["u",t][0,0])
+            prog.AddQuadraticCost(r["u",t][0,0]*r["u",t][0,0])
+#            subset(prog,U[t],H_polytope(R.H_polytope.H,np.dot(R.H_polytope.h,3)))
 #            prog.AddLinearConstraint(np.less_equal(r["u",t],r["u-max"],dtype='object').flatten())
 
 #     Proxy Quadratic cost
     else:
         J=0
-        for t in range(1,T):
+        for t in range(T):
             print t,"cost"
             J+=sum(U[t].x.flatten()**2)
             J+=sum(U[t].G.flatten()**2)
-            J+=sum(Z[t].x.flatten()**2)
-            J+=sum(Gz[t].flatten()**2)
+            J+=sum(Z[t+1].x.flatten()**2)
+            J+=sum(Gz[t+1].flatten()**2)
         prog.AddQuadraticCost(J)    
     print "Now solving the Linear Program"
     result=gurobi_solver.Solve(prog,None,None)
