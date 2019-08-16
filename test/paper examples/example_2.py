@@ -1,12 +1,3 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Aug 15 15:58:14 2019
-
-@author: sadra
-"""
-
-
 import numpy as np
 from pypolytrajectory.LTV import system,test_controllability
 from pypolytrajectory.reduction import reduced_order,order_reduction_error,error_construction,error_construction_old
@@ -17,10 +8,10 @@ from pypolytrajectory.synthesis import output_feedback_synthesis,outputfeedback_
 from pypolytrajectory.system import LQG_LTV,LTV,LQG
 import scipy.linalg as spa
 
-np.random.seed(0)
+np.random.seed(1)
 S=LTV()
-n=6
-m=1
+n=500
+m=5
 o=1
 z=1
 T=42
@@ -28,7 +19,7 @@ S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
 B[0,0]=0
 #B[1,0]=0
-A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.8
+A=0.98*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.01
 C=np.zeros((o,n))
 C[0,0]=1
 #C[1,1]=1
@@ -284,7 +275,7 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
         print J
     return J
 
-J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
+J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG"])
 #N=100
 #J=simulate_and_cost_evaluate(N=N,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
 

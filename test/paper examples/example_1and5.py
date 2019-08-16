@@ -1,12 +1,3 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Aug 15 15:58:14 2019
-
-@author: sadra
-"""
-
-
 import numpy as np
 from pypolytrajectory.LTV import system,test_controllability
 from pypolytrajectory.reduction import reduced_order,order_reduction_error,error_construction,error_construction_old
@@ -26,7 +17,7 @@ z=1
 T=42
 S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
-B[0,0]=0
+#B[0,0]=0
 #B[1,0]=0
 A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.8
 C=np.zeros((o,n))
@@ -95,21 +86,6 @@ plt1.ylabel(r"$tr(FF')$",fontsize=20)
 plt1.grid(lw=0.2,color=(0.2,0.3,0.2))
 
 
-
-T=40
-
-u_tilde,theta=output_feedback_synthesis_lightweight_many_variables(S,T=T)
-#theta_zero={}
-#u_tilde_zero={}
-#for t in range(T):
-#    theta_zero[t]=theta[t]*0
-#    u_tilde_zero[t]=u_tilde[t]*0
-Z,U=outputfeedback_synthesis_zonotope_solution(S,u_tilde,theta)
-#Z,U=outputfeedback_synthesis_zonotope_solution(S,u_tilde_zero,theta_zero)
-
-
-# Synthesis
-Goal=zonotope(np.ones((1,1))*0,np.eye(1)*1)
 
 
     
@@ -284,8 +260,15 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
         print J
     return J
 
-J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
-#N=100
-#J=simulate_and_cost_evaluate(N=N,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
+T=30
+u_tilde,theta=output_feedback_synthesis_lightweight_many_variables(S,T=T)
+Z,U=outputfeedback_synthesis_zonotope_solution(S,u_tilde,theta)
 
-    
+
+# Synthesis
+
+J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
+N=100
+J=simulate_and_cost_evaluate(N=N,disturbance_method="guassian",keys=["Our Method","TV-LQG","TI-LQG"])
+print np.mean(np.array([J[i]["Our Method"]/J[i]["TV-LQG"] for i in range(N)]))    
+print np.mean(np.array([J[i]["Our Method"]/J[i]["TI-LQG"] for i in range(N)]))    

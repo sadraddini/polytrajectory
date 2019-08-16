@@ -23,7 +23,7 @@ global gurobi_solver,OSQP_solver
 gurobi_solver=Gurobi_drake.GurobiSolver()
 OSQP_solver=OSQP_drake.OsqpSolver()
 
-
+import time
 
 def output_feedback_synthesis(sys,T):
     prog=MP.MathematicalProgram()
@@ -99,7 +99,7 @@ def output_feedback_synthesis(sys,T):
     else:
         print "Synthesis Failed!"            
         
-def output_feedback_synthesis_lightweight_many_variables(sys,T):
+def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
     prog=MP.MathematicalProgram()
     # Add Variables
     phi,theta,Phi,Theta={},{},{},{}
@@ -142,14 +142,21 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T):
             sys.F[t].x
         Gz[t]=np.linalg.multi_dot([sys.R[t],Phi[t],sys.Xi_reduced[t].G])+\
             np.linalg.multi_dot([sys.S[t],Theta[t],sys.Xi_reduced[t].G])
-#        Z[t]=zonotope(z_bar,np.hstack((Gz[t],sys.F_reduced[t].G)))
-        Z[t]=zonotope(z_bar,Gz[t])
+        Z[t]=zonotope(z_bar,np.hstack((Gz[t],sys.F_reduced[t].G)))
+#        Z[t]=zonotope(z_bar,Gz[t])
         prog.AddLinearConstraint(np.equal(Gz[t],Gz["var",t],dtype='object').flatten())
     for t in range(T):
         # U zonotope
         u_bar=u_tilde[t]+np.dot(theta[t],sys.Xi_reduced[t].x)
         Gu=np.dot(theta[t],sys.Xi_reduced[t].G)
         U[t]=zonotope(u_bar,Gu)
+    # Constraints
+    for t,value in H_U.items():
+        print "performing subset for U",t,value
+        subset(prog,U[t],H_U[t]) 
+    for t,value in H_Z.items():
+        print "performing subset for Z",t,value
+        subset(prog,Z[t],H_Z[t]) 
     # Proxy Linear Cost
     if True:
         r={}
@@ -177,7 +184,7 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T):
 #            prog.AddLinearConstraint(np.less_equal(r["u",t],r["u-max"],dtype='object').flatten())
 
 #     Proxy Quadratic cost
-    else:
+    elif False:
         J=0
         for t in range(T):
             print t,"cost"
@@ -187,7 +194,9 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T):
             J+=sum(Gz[t+1].flatten()**2)
         prog.AddQuadraticCost(J)    
     print "Now solving the Linear Program"
+    start=time.time()
     result=gurobi_solver.Solve(prog,None,None)
+    print "time to solve",time.time()-start
     if result.is_success():
         print "Synthesis Success!","\n"*5
 #        print "D=",result.GetSolution(D)
