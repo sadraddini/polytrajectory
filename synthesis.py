@@ -23,7 +23,7 @@ global gurobi_solver,OSQP_solver
 gurobi_solver=Gurobi_drake.GurobiSolver()
 OSQP_solver=OSQP_drake.OsqpSolver()
 
-
+import time
 
 def output_feedback_synthesis(sys,T):
     prog=MP.MathematicalProgram()
@@ -99,7 +99,7 @@ def output_feedback_synthesis(sys,T):
     else:
         print "Synthesis Failed!"            
         
-def output_feedback_synthesis_lightweight_many_variables(sys,T):
+def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
     prog=MP.MathematicalProgram()
     # Add Variables
     phi,theta,Phi,Theta={},{},{},{}
@@ -150,6 +150,8 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T):
         u_bar=u_tilde[t]+np.dot(theta[t],sys.Xi_reduced[t].x)
         Gu=np.dot(theta[t],sys.Xi_reduced[t].G)
         U[t]=zonotope(u_bar,Gu)
+    # Constraints
+    for t,value in H_U.items():
     # Proxy Linear Cost
     if True:
         r={}
@@ -187,7 +189,9 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T):
             J+=sum(Gz[t+1].flatten()**2)
         prog.AddQuadraticCost(J)    
     print "Now solving the Linear Program"
+    start=time.time()
     result=gurobi_solver.Solve(prog,None,None)
+    print "time to solve",time.time()-start
     if result.is_success():
         print "Synthesis Success!","\n"*5
 #        print "D=",result.GetSolution(D)

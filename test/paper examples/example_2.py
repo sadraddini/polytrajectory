@@ -1,12 +1,3 @@
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Aug 15 15:58:14 2019
-
-@author: sadra
-"""
-
-
 import numpy as np
 from pypolytrajectory.LTV import system,test_controllability
 from pypolytrajectory.reduction import reduced_order,order_reduction_error,error_construction,error_construction_old
@@ -19,16 +10,16 @@ import scipy.linalg as spa
 
 np.random.seed(0)
 S=LTV()
-n=6
-m=1
-o=1
+n=200
+m=5
+o=2
 z=1
 T=42
 S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
 B[0,0]=0
 #B[1,0]=0
-A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.8
+A=0.98*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.02
 C=np.zeros((o,n))
 C[0,0]=1
 #C[1,1]=1
