@@ -142,8 +142,8 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
             sys.F[t].x
         Gz[t]=np.linalg.multi_dot([sys.R[t],Phi[t],sys.Xi_reduced[t].G])+\
             np.linalg.multi_dot([sys.S[t],Theta[t],sys.Xi_reduced[t].G])
-#        Z[t]=zonotope(z_bar,np.hstack((Gz[t],sys.F_reduced[t].G)))
-        Z[t]=zonotope(z_bar,Gz[t])
+        Z[t]=zonotope(z_bar,np.hstack((Gz[t],sys.F_reduced[t].G)))
+#        Z[t]=zonotope(z_bar,Gz[t])
         prog.AddLinearConstraint(np.equal(Gz[t],Gz["var",t],dtype='object').flatten())
     for t in range(T):
         # U zonotope
@@ -152,6 +152,11 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
         U[t]=zonotope(u_bar,Gu)
     # Constraints
     for t,value in H_U.items():
+        print "performing subset for U",t,value
+        subset(prog,U[t],H_U[t]) 
+    for t,value in H_Z.items():
+        print "performing subset for Z",t,value
+        subset(prog,Z[t],H_Z[t]) 
     # Proxy Linear Cost
     if True:
         r={}
@@ -179,7 +184,7 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
 #            prog.AddLinearConstraint(np.less_equal(r["u",t],r["u-max"],dtype='object').flatten())
 
 #     Proxy Quadratic cost
-    else:
+    elif False:
         J=0
         for t in range(T):
             print t,"cost"

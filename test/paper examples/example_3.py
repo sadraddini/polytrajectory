@@ -12,20 +12,26 @@ from pypolytrajectory.system import LQG_LTV,LTV,LQG
 import scipy.linalg as spa
 
 # pypolycontain
-from pypolycontain.visualization.visualize_2D import visualize_2D_zonotopes as visZ
+from pypolycontain.visualization.visualize_2D import visualize_2D_zonotopes_ax as visZax
 
 np.random.seed(0)
 S=LTV()
-n=5
-m=1
+n=10
+m=2
 o=1
 z=2
-T=42
-S.X0=zonotope(np.ones((n,1))*100,np.eye(n)*1)
-B=np.random.randint(0,2,size=(n,m))
+T=52
+x0_bar=np.ones((n,1))*15
+x0_bar[0,0]=-10
+S.X0=zonotope(x0_bar,np.eye(n)*1)
+B=np.random.randint(0,2,size=(n,m))*0.05
 B[0,0]=0
 #B[1,0]=0
-A=0.8*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.4
+A=0.97*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.03
+for i in range(n):
+    for j in range(n):
+        if i>j:
+            A[i,j]=0 
 C=np.zeros((o,n))
 C[0,0]=1
 #C[1,1]=1
@@ -36,8 +42,8 @@ for t in range(T):
     S.C[t]=C
     S.D[t]=D
     S.d[t]=np.zeros((z,1))
-    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.01)
-    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.01)
+    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.05)
+    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.05)
     S.QQ[t]=np.eye(n)*0
     S.RR[t]=np.eye(m)*1
     S.QQ[t][0,0]=1
@@ -85,9 +91,15 @@ plt1.grid(lw=0.2,color=(0.2,0.3,0.2))
 
 
 
-T=40
-
-u_tilde,theta=output_feedback_synthesis_lightweight_many_variables(S,T=T)
+T=50
+H_U={}
+H_Z={}
+for t in range(T):
+    H_U[t]=zonotope(x=np.array([0,0]).reshape(2,1),G=np.eye(2)*15,color=(0,0.5,1))
+#    H_Z[t]=zonotope(x=np.array([0,0]).reshape(2,1),G=np.eye(2)*100,color="red")
+H_Z[T]=zonotope(x=np.array([0,0]).reshape(2,1),G=np.eye(2)*5,color=(1,0.5,0.5))
+    
+u_tilde,theta=output_feedback_synthesis_lightweight_many_variables(S,T=T,H_Z=H_Z,H_U=H_U)
 #theta_zero={}
 #u_tilde_zero={}
 #for t in range(T):
@@ -95,10 +107,6 @@ u_tilde,theta=output_feedback_synthesis_lightweight_many_variables(S,T=T)
 #    u_tilde_zero[t]=u_tilde[t]*0
 Z,U=outputfeedback_synthesis_zonotope_solution(S,u_tilde,theta)
 #Z,U=outputfeedback_synthesis_zonotope_solution(S,u_tilde_zero,theta_zero)
-
-
-# Synthesis
-Goal=zonotope(np.ones((1,1))*0,np.eye(1)*1)
 
 
     
@@ -135,10 +143,9 @@ def simulate_my_controller(sys,x_0,T,w,v):
     x[0]=x_0
     Y,U={},{}
     for t in range(T+1):
-        print "simulating time:",t
         y[t]=np.dot(sys.C[t],x[t])+v[t]
         if t==T:
-            return x,y,u,x
+            return x,y,u
         if t==0:
             xi[0]=y[0]
         else:
@@ -147,10 +154,35 @@ def simulate_my_controller(sys,x_0,T,w,v):
             e[t-1]=y[t]-np.dot(sys.M[t-1],Y[t-1])-np.dot(sys.N[t-1],U[t-1])
             xi[t]=np.vstack([y[0]]+[e[tau] for tau in range(t)])
         u[t]=u_tilde[t]+np.dot(theta[t],xi[t])
-        x[t+1]=np.dot(sys.A[t],x[t])+np.dot(sys.B[t],u[t])+w[t]  
+        x[t+1]=np.dot(sys.A[t],x[t])+np.dot(sys.B[t],u[t])+w[t] 
 
-Z_red={}              
+w,v=generate_random_disturbance(S,T,"extreme")
+x0=0.9*np.ones((S.n,1))*(-1)**np.random.randint(1,3)+S.X0.x
+x,y,u=simulate_my_controller(S,x0,T,w,v)        
+fig, ax = plt.subplots() # note we must use plt.subplots, not plt.subplot
+Z_red={}       
+fig.set_size_inches(12, 12)       
 for t in range(T+1):
-    G=Girard(Z[t].G,6)
-    Z_red[t]=zonotope(Z[t].x,G,color="orange")
-visZ([Z_red[t] for t in range(T+1)])    
+    G=Girard(Z[t].G,10)
+    Z_red[t]=zonotope(Z[t].x,G,color=(t/(T+10.1),t/(T+0.1),t/(T+5.1)))
+visZax(ax,[H_Z[T]]+[Z_red[t] for t in range(T+1)],alpha=0.5)    
+#visZax(ax,[H_Z[T]]+[Z_red[T]],alpha=0.99)   
+ax.set_title(r"Performance Variables",fontsize=26) 
+ax.set_xlabel(r"$x_1$",fontsize=26) 
+ax.set_ylabel(r"$x_2$",fontsize=26) 
+ax.plot([x[t][0,0] for t in range(T+1)],[x[t][1,0] for t in range(T+1)],'-',Linewidth=3,color='blue') 
+ax.plot([x[t][0,0] for t in range(T+1)],[x[t][1,0] for t in range(T+1)],'o',MarkerSize=5,color='blue') 
+
+
+fig2, ax2 = plt.subplots() # note we must use plt.subplots, not plt.subplot
+U_red={}       
+fig2.set_size_inches(12, 12)       
+for t in range(T):
+    G=Girard(U[t].G,10)
+    U_red[t]=zonotope(U[t].x,G+np.random.random(G.shape)*0.01,color=(t/(T+10.1),t/(T+10.1),t/(T+0.1)))
+visZax(ax2,[H_U[T-1]]+[U_red[t] for t in range(T)],alpha=0.5)  
+ax2.set_title(r"Control Inputs",fontsize=26) 
+ax2.set_xlabel(r"$u_1$",fontsize=26) 
+ax2.set_ylabel(r"$u_2$",fontsize=26) 
+ax2.plot([u[t][0,0] for t in range(T)],[u[t][1,0] for t in range(T)],'-',Linewidth=3,color=(0,0.3,0))  
+ax2.plot([u[t][0,0] for t in range(T)],[u[t][1,0] for t in range(T)],'o',MarkerSize=5,color=(0,0.3,0))    
