@@ -14,7 +14,7 @@ import scipy.linalg as spa
 # pypolycontain
 from pypolycontain.visualization.visualize_2D import visualize_2D_zonotopes_ax as visZax
 
-np.random.seed(0)
+np.random.seed(2)
 S=LTV()
 n=10
 m=2
@@ -22,12 +22,15 @@ o=1
 z=2
 T=52
 x0_bar=np.ones((n,1))*15
-x0_bar[0,0]=-10
+x0_bar[0,0]=-15
 S.X0=zonotope(x0_bar,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))*0.05
-B[0,0]=0
-#B[1,0]=0
-A=0.97*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.03
+#B[0,0]=0.05
+#B[1,1]=0.05
+A=0.95*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.1
+#n_2=8
+#A[n-n_2:,n-n_2:]=np.eye(n_2)
+#A[n-n_2:,:n-n_2]=np.zeros((n_2,n-n_2))
 for i in range(n):
     for j in range(n):
         if i>j:
@@ -42,7 +45,7 @@ for t in range(T):
     S.C[t]=C
     S.D[t]=D
     S.d[t]=np.zeros((z,1))
-    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.05)
+    S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.00)
     S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.05)
     S.QQ[t]=np.eye(n)*0
     S.RR[t]=np.eye(m)*1
@@ -95,9 +98,9 @@ T=50
 H_U={}
 H_Z={}
 for t in range(T):
-    H_U[t]=zonotope(x=np.array([0,0]).reshape(2,1),G=np.eye(2)*15,color=(0,0.5,1))
+    H_U[t]=zonotope(x=np.array([0,0]).reshape(2,1),G=np.eye(2)*10,color=(0,0.0,1))
 #    H_Z[t]=zonotope(x=np.array([0,0]).reshape(2,1),G=np.eye(2)*100,color="red")
-H_Z[T]=zonotope(x=np.array([0,0]).reshape(2,1),G=np.eye(2)*5,color=(1,0.5,0.5))
+H_Z[T]=zonotope(x=np.array([0,0]).reshape(2,1),G=np.eye(2)*15,color=(1,0.0,0.0))
     
 u_tilde,theta=output_feedback_synthesis_lightweight_many_variables(S,T=T,H_Z=H_Z,H_U=H_U)
 #theta_zero={}
@@ -164,25 +167,32 @@ Z_red={}
 fig.set_size_inches(12, 12)       
 for t in range(T+1):
     G=Girard(Z[t].G,10)
-    Z_red[t]=zonotope(Z[t].x,G,color=(t/(T+10.1),t/(T+0.1),t/(T+5.1)))
-visZax(ax,[H_Z[T]]+[Z_red[t] for t in range(T+1)],alpha=0.5)    
-#visZax(ax,[H_Z[T]]+[Z_red[T]],alpha=0.99)   
-ax.set_title(r"Performance Variables",fontsize=26) 
-ax.set_xlabel(r"$x_1$",fontsize=26) 
-ax.set_ylabel(r"$x_2$",fontsize=26) 
-ax.plot([x[t][0,0] for t in range(T+1)],[x[t][1,0] for t in range(T+1)],'-',Linewidth=3,color='blue') 
-ax.plot([x[t][0,0] for t in range(T+1)],[x[t][1,0] for t in range(T+1)],'o',MarkerSize=5,color='blue') 
-
-
-fig2, ax2 = plt.subplots() # note we must use plt.subplots, not plt.subplot
+    Z_red[t]=zonotope(Z[t].x,G,color=(t/(T+10.1),0.9,0.5))
 U_red={}       
-fig2.set_size_inches(12, 12)       
 for t in range(T):
     G=Girard(U[t].G,10)
     U_red[t]=zonotope(U[t].x,G+np.random.random(G.shape)*0.01,color=(t/(T+10.1),t/(T+10.1),t/(T+0.1)))
-visZax(ax2,[H_U[T-1]]+[U_red[t] for t in range(T)],alpha=0.5)  
-ax2.set_title(r"Control Inputs",fontsize=26) 
-ax2.set_xlabel(r"$u_1$",fontsize=26) 
-ax2.set_ylabel(r"$u_2$",fontsize=26) 
-ax2.plot([u[t][0,0] for t in range(T)],[u[t][1,0] for t in range(T)],'-',Linewidth=3,color=(0,0.3,0))  
-ax2.plot([u[t][0,0] for t in range(T)],[u[t][1,0] for t in range(T)],'o',MarkerSize=5,color=(0,0.3,0))    
+        
+        
+for Tau in range(T+1):
+    fig,ax = plt.subplots()
+    fig.set_size_inches(10, 10)
+    visZax(ax,[H_Z[T]]+[Z_red[t] for t in range(Tau)]+[zonotope(Z_red[t].x,Z_red[t].G,color='cyan')],alpha=0.8)    
+    #visZax(ax,[H_Z[T]]+[Z_red[T]],alpha=0.99)   
+    ax.set_title(r"Performance Variables",fontsize=26) 
+    ax.set_xlabel(r"$x_1$",fontsize=26) 
+    ax.set_ylabel(r"$x_2$",fontsize=26) 
+    ax.set_xlim([-20,20])
+    ax.set_ylim([-35,25])
+    ax.plot([x[t][0,0] for t in range(Tau+1)],[x[t][1,0] for t in range(Tau+1)],'-',Linewidth=3,color='blue') 
+    ax.plot([x[t][0,0] for t in range(Tau+1)],[x[t][1,0] for t in range(Tau+1)],'o',MarkerSize=5,color='blue') 
+    fig2, ax2 = plt.subplots() # note we must use plt.subplots, not plt.subplot
+    fig2.set_size_inches(12, 12)       
+    visZax(ax2,[H_U[T-1]]+[U_red[t] for t in range(Tau)]+[zonotope(U_red[t].x,U_red[t].G,color='cyan')],alpha=0.5)  
+    ax2.set_title(r"Control Inputs",fontsize=26) 
+    ax2.set_xlabel(r"$u_1$",fontsize=26) 
+    ax2.set_ylabel(r"$u_2$",fontsize=26) 
+    ax2.plot([u[t][0,0] for t in range(Tau)],[u[t][1,0] for t in range(Tau)],'-',Linewidth=3,color=(0,0.3,0))  
+    ax2.plot([u[t][0,0] for t in range(Tau)],[u[t][1,0] for t in range(Tau)],'o',MarkerSize=5,color=(0,0.3,0))  
+    fig.savefig('figures/mpc_z_%d.png'%t, dpi=100)
+    fig2.savefig('figures/mpc_u_%d.png'%t, dpi=100)

@@ -182,7 +182,6 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
             prog.AddQuadraticCost(r["u",t][0,0]*r["u",t][0,0])
 #            subset(prog,U[t],H_polytope(R.H_polytope.H,np.dot(R.H_polytope.h,3)))
 #            prog.AddLinearConstraint(np.less_equal(r["u",t],r["u-max"],dtype='object').flatten())
-
 #     Proxy Quadratic cost
     elif False:
         J=0
@@ -202,6 +201,11 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
 #        print "D=",result.GetSolution(D)
         theta_n={t:result.GetSolution(theta[t]).reshape(theta[t].shape) for t in range(0,T)}
         u_tilde_n={t:result.GetSolution(u_tilde[t]).reshape(u_tilde[t].shape) for t in range(0,T)}
+        r_z=np.array([result.GetSolution(r["z",t][0,0]) for t in range(1,T+1)])
+        r_u=np.array([result.GetSolution(r["u",t][0,0]) for t in range(0,T)])
+        print "Upper Cost",np.linalg.norm(r_z,ord=2)**2+np.linalg.norm(r_u,ord=2)**2
+        print r_z
+        print r_u
         return u_tilde_n,theta_n
     else:
         print "Synthesis Failed!"
@@ -259,6 +263,61 @@ def outputfeedback_synthesis_zonotope_solution(sys,u_tilde,theta):
         Gu=np.dot(theta[t],sys.Xi[t].G)
         U[t]=zonotope(u_bar,Gu)
     return Z,U
+
+
+def invariance_time(sys,T):
+    """
+        The idea is to find invariance
+    """ 
+    prog=MP.MathematicalProgram()
+    Theta={}
+    theta={}
+    u_tilde,U_tilde={},{}
+    # Initial
+    # Main variables
+    for t in range(T):
+        theta[t]=prog.NewContinuousVariables(sys.m,sys.o*(t+1),"theta%d"%t)
+        u_tilde[t]=prog.NewContinuousVariables(sys.m,1,"u_tilde%d"%t)
+    Theta[0]=theta[0]
+    # Aggragates
+    for t in range(T):
+        U_tilde[t]=np.vstack([u_tilde[tau] for tau in range(t+1)])
+    for t in range(T-1):
+        Theta[t+1]=triangular_stack(Theta[t],theta[t+1])
+    Ptheta=np.dot(sys.P["u",T],Theta[T-1])
+    a_x=sys.P["x",T]+np.dot(Ptheta,sys.Xi["x",T-1])
+    a_w=sys.P["w",T] + np.dot(Ptheta,sys.Xi["w",T-1])
+    a_v=np.dot(Ptheta,sys.Xi["v",T-1])
+    Gw=spa.block_diag(*[sys.W[t].G for tau in range(0,T)])
+    Gv=spa.block_diag(*[sys.V[t].G for tau in range(0,T)])
+    Wbar=np.vstack([sys.W[tau].x for tau in range(0,T)])
+    Vbar=np.vstack([sys.V[tau].x for tau in range(0,T)])
+    x_bar=np.dot(sys.P["u",T],U_tilde[T-1]) + np.dot(a_x,sys.X0.x) \
+            + np.dot(a_w,Wbar) + np.dot(a_v,Vbar)
+    G=np.hstack((  np.dot(a_x,sys.X0.G), np.dot(a_w,Gw), np.dot(a_v,Gv)  ))
+    X_new=zonotope(x_bar,G)
+    subset(prog,X_new,sys.X0)
+    J=0
+    for t in range(T):
+        print t,"cost"
+        J+=sum(u_tilde[t].flatten()**2)
+        J+=sum(theta[t].flatten()**2)
+    prog.AddQuadraticCost(J) 
+    print "Now solving the Quadratic Program"
+    start=time.time()
+    result=gurobi_solver.Solve(prog,None,None)
+    print "time to solve",time.time()-start
+    if result.is_success():
+        print "Synthesis Success!","\n"*5
+        theta_n={t:result.GetSolution(theta[t]).reshape(theta[t].shape) for t in range(0,T)}
+        u_tilde_n={t:result.GetSolution(u_tilde[t]).reshape(u_tilde[t].shape) for t in range(0,T)}
+        x_bar_n,G_n=result.GetSolution(x_bar),result.GetSolution(G)
+        return u_tilde_n,theta_n,zonotope(x_bar_n,G_n)
+    else:
+        print "Synthesis Failed!"
+
+
+
 
 def triangular_stack(A,B):
     q=B.shape[1]-A.shape[1]

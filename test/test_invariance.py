@@ -1,25 +1,33 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Oct 12 16:20:34 2019
+
+@author: sadra
+"""
+
 import numpy as np
 from pypolytrajectory.LTV import system,test_controllability
 from pypolytrajectory.reduction import reduced_order,order_reduction_error,error_construction,error_construction_old
 from pypolycontain.lib.objects import zonotope
 from pypolycontain.lib.zonotope_order_reduction.methods import G_cut,Girard
 from pypolytrajectory.synthesis import output_feedback_synthesis,outputfeedback_synthesis_zonotope_solution,\
-    triangular_stack_list,output_feedback_synthesis_lightweight_many_variables
+    triangular_stack_list,output_feedback_synthesis_lightweight_many_variables,invariance_time
 from pypolytrajectory.system import LQG_LTV,LTV,LQG
 import scipy.linalg as spa
 
 np.random.seed(1)
 S=LTV()
-n=6
+n=12
 m=1
 o=1
 z=1
 T=42
-S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
+S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*10)
 B=np.random.randint(0,2,size=(n,m))
-#B[0,0]=0
+B[0,0]=0
 #B[1,0]=0
-A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.8
+A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.5
 C=np.zeros((o,n))
 C[0,0]=1
 #C[1,1]=1
@@ -39,11 +47,12 @@ for t in range(T):
     S.D[t]=D
     S.d[t]=np.zeros((z,1))
     S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.01)
-    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.01)
+    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.05)
     S.QQ[t]=np.eye(n)*0
     S.RR[t]=np.eye(m)*1
     S.QQ[t][0,0]=1
-S.F_cost=np.eye(n)*1
+S.F_cost=np.eye(n)*0
+S.F_cost[0,0]=1
 
 S.U_set=zonotope(np.zeros((m,1)),np.eye(m)*1)
 S.construct_dimensions()
@@ -86,9 +95,32 @@ plt1.ylabel(r"$tr(FF')$",fontsize=20)
 plt1.grid(lw=0.2,color=(0.2,0.3,0.2))
 
 
+def simulate_my_invariance_controller(sys,u_tilde,theta,x_0,T,w,v,N):
+    """
+        N is the number of episodes
+    """
+    x,y,u,e,xi={},{},{},{},{}
+    x[0]=x_0
+    Y,U={},{}
+    for i in range(0,N):
+        for t in range(T+1):
+            print "simulating time:",t
+            y[t]=np.dot(sys.C[t],x[i*T+t])+v[i*T+t]
+            if t==T and i==N-1:
+                return x,y,u
+            elif t==T:
+                break
+            if t==0:
+                xi[0]=y[0]
+            else:
+                Y[t-1]=np.vstack([y[tau] for tau in range(t)])
+                U[t-1]=np.vstack([u[i*T+tau] for tau in range(t)])
+                e[t-1]=y[t]-np.dot(sys.M[t-1],Y[t-1])-np.dot(sys.N[t-1],U[t-1])
+                xi[t]=np.vstack([y[0]]+[e[tau] for tau in range(t)])
+            u[i*T+t]=u_tilde[t]+np.dot(theta[t],xi[t])
+            x[i*T+t+1]=np.dot(sys.A[t],x[i*T+t])+np.dot(sys.B[t],u[i*T+t])+w[i*T+t]  
 
-
-    
+   
 def generate_random_disturbance(sys,T,method="guassian"):
     w,v={},{}
     if method=="guassian":
@@ -104,8 +136,8 @@ def generate_random_disturbance(sys,T,method="guassian"):
         for t in range(T+1):
             zeta_w=np.ones((sys.n,1))*(-1)**np.random.randint(1,3)
             zeta_v=np.ones((sys.o,1))*(-1)**np.random.randint(1,3)
-            v[t]=np.dot(sys.V[t].G,zeta_v)+sys.V[t].x
-            w[t]=np.dot(sys.W[t].G,zeta_w)+sys.W[t].x
+            v[t]=np.dot(sys.V[0].G,zeta_v)+sys.V[0].x
+            w[t]=np.dot(sys.W[0].G,zeta_w)+sys.W[0].x
     elif method=="zero":
         for t in range(T+1):
             zeta_w=np.zeros((sys.n,1))
@@ -150,25 +182,6 @@ def simulate_LQG_LTI(sys,x_0,T,w,v,L,K):
         x_observer[t+1]=np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])+\
             np.dot(L,y[t+1]-np.dot(sys.C[t+1],np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])))
 #        print "control",t,u[t],u[t].shape
-
-def simulate_my_controller(sys,x_0,T,w,v):
-    x,y,u,e,xi={},{},{},{},{}
-    x[0]=x_0
-    Y,U={},{}
-    for t in range(T+1):
-        print "simulating time:",t
-        y[t]=np.dot(sys.C[t],x[t])+v[t]
-        if t==T:
-            return x,y,u,x
-        if t==0:
-            xi[0]=y[0]
-        else:
-            Y[t-1]=np.vstack([y[tau] for tau in range(t)])
-            U[t-1]=np.vstack([u[tau] for tau in range(t)])
-            e[t-1]=y[t]-np.dot(sys.M[t-1],Y[t-1])-np.dot(sys.N[t-1],U[t-1])
-            xi[t]=np.vstack([y[0]]+[e[tau] for tau in range(t)])
-        u[t]=u_tilde[t]+np.dot(theta[t],xi[t])
-        x[t+1]=np.dot(sys.A[t],x[t])+np.dot(sys.B[t],u[t])+w[t]  
         
     
 def simulate_and_cost_evaluate(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG"]):
@@ -221,7 +234,7 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
 #    ax1.set_title(r'Possible Control Inputs Over Time',fontsize=26)
 #    ax2.set_title(r'Error of Observer State')
     if "TI-LQG" in keys:
-        L,K=LQG(S.A[0],S.B[0],S.C[0],S.W[0].G,S.V[0].G,S.QQ[0],S.RR[0])
+        L,K=LQG(S.A[0],S.B[0],S.C[0],S.W[0].G**2,S.V[0].G**2,S.QQ[0],S.RR[0])
     if "TV-LQG" in keys:
         S.L,S.K=LQG_LTV(S,T)
     for i in range(N):
@@ -257,18 +270,23 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
         J={}
         for method in x.keys():
             J[method]=sum([np.linalg.norm(np.dot(S.D[t],x[method][t]),ord=2)**2+np.linalg.norm(u[method][t],ord=2)**2 for t in range(T)])
+            J[method]+=np.linalg.norm(np.dot(S.D[T],x[method][T]),ord=2)**2
         print J
     return J
 
-T=30
-u_tilde,theta=output_feedback_synthesis_lightweight_many_variables(S,T=T)
-Z,U=outputfeedback_synthesis_zonotope_solution(S,u_tilde,theta)
-
-
-# Synthesis
-
-J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
-N=100
-J=simulate_and_cost_evaluate(N=N,disturbance_method="guassian",keys=["Our Method","TV-LQG","TI-LQG"])
-print np.mean(np.array([J[i]["Our Method"]/J[i]["TV-LQG"] for i in range(N)]))    
-print np.mean(np.array([J[i]["Our Method"]/J[i]["TI-LQG"] for i in range(N)]))    
+T=10
+N=10
+u_tilde,theta,X_T=invariance_time(S,T=T) 
+zeta_x=1*np.ones((S.n,1))*(-1)**np.random.randint(1,3)
+x_0=np.dot(S.X0.G,zeta_x)+S.X0.x
+w,v=generate_random_disturbance(S,T*N,method="extreme")
+x,y,u=simulate_my_invariance_controller(S,u_tilde,theta,x_0,T,w,v,N)
+plt.plot([x[t][2,0] for t in range(T*N)],[x[t][1,0] for t in range(T*N)])               
+plt.plot([x[t][2,0] for t in range(T*N)])               
+             
+#J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
+#N=100
+#J=simulate_and_cost_evaluate(N=N,disturbance_method="guassian",keys=["Our Method","TV-LQG","TI-LQG"])
+#a=np.array([J[i]["Our Method"]/J[i]["TV-LQG"] for i in range(N)])
+#b=np.array([J[i]["Our Method"]/J[i]["TI-LQG"] for i in range(N)])
+#print np.mean(a),np.mean(b)

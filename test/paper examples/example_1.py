@@ -17,7 +17,7 @@ from pypolytrajectory.synthesis import output_feedback_synthesis,outputfeedback_
 from pypolytrajectory.system import LQG_LTV,LTV,LQG
 import scipy.linalg as spa
 
-np.random.seed(0)
+np.random.seed(1000)
 S=LTV()
 n=6
 m=1
@@ -28,7 +28,7 @@ S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
 B[0,0]=0
 #B[1,0]=0
-A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.8
+A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.95
 C=np.zeros((o,n))
 C[0,0]=1
 #C[1,1]=1
@@ -48,11 +48,12 @@ for t in range(T):
     S.D[t]=D
     S.d[t]=np.zeros((z,1))
     S.W[t]=zonotope(np.zeros((n,1)),np.eye(n)*0.01)
-    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.01)
+    S.V[t]=zonotope(np.zeros((o,1)),np.eye(o)*0.05)
     S.QQ[t]=np.eye(n)*0
     S.RR[t]=np.eye(m)*1
     S.QQ[t][0,0]=1
-S.F_cost=np.eye(n)*1
+S.F_cost=np.eye(n)*0
+S.F_cost[0,0]=1
 
 S.U_set=zonotope(np.zeros((m,1)),np.eye(m)*1)
 S.construct_dimensions()
@@ -93,7 +94,6 @@ plt1.title(r"$\mathbb{F}_t$ Over Time",fontsize=20)
 plt1.xlabel(r"time",fontsize=20)
 plt1.ylabel(r"$tr(FF')$",fontsize=20)
 plt1.grid(lw=0.2,color=(0.2,0.3,0.2))
-
 
 
 T=40
@@ -245,7 +245,7 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
 #    ax1.set_title(r'Possible Control Inputs Over Time',fontsize=26)
 #    ax2.set_title(r'Error of Observer State')
     if "TI-LQG" in keys:
-        L,K=LQG(S.A[0],S.B[0],S.C[0],S.W[0].G,S.V[0].G,S.QQ[0],S.RR[0])
+        L,K=LQG(S.A[0],S.B[0],S.C[0],S.W[0].G**2,S.V[0].G**2,S.QQ[0],S.RR[0])
     if "TV-LQG" in keys:
         S.L,S.K=LQG_LTV(S,T)
     for i in range(N):
@@ -281,11 +281,13 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
         J={}
         for method in x.keys():
             J[method]=sum([np.linalg.norm(np.dot(S.D[t],x[method][t]),ord=2)**2+np.linalg.norm(u[method][t],ord=2)**2 for t in range(T)])
+            J[method]+=np.linalg.norm(np.dot(S.D[T],x[method][T]),ord=2)**2
         print J
     return J
 
 J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
-#N=100
-#J=simulate_and_cost_evaluate(N=N,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
-
-    
+N=100
+J=simulate_and_cost_evaluate(N=N,disturbance_method="guassian",keys=["Our Method","TV-LQG","TI-LQG"])
+a=np.array([J[i]["Our Method"]/J[i]["TV-LQG"] for i in range(N)])
+b=np.array([J[i]["Our Method"]/J[i]["TI-LQG"] for i in range(N)])
+print np.mean(a),np.mean(b)

@@ -234,12 +234,12 @@ def LQG_LTV(sys,T):
     We solve the Riccati difference equations
     """
     P,S,L,K={},{},{},{}
-    P[0]=sys.X0.G
+    P[0]=sys.X0.G**2*0.33
     S[T]=sys.F_cost
     for t in range(T+1):
-        alpha=np.linalg.multi_dot([sys.C[t],P[t],sys.C[t].T])+sys.V[t].G
+        alpha=np.linalg.multi_dot([sys.C[t],P[t],sys.C[t].T])+sys.V[t].G**2*0.33
         beta=P[t]-np.linalg.multi_dot([P[t],sys.C[t].T,np.linalg.inv(alpha),sys.C[t],P[t]])
-        P[t+1]=np.linalg.multi_dot([sys.A[t],beta,sys.A[t].T])+sys.W[t].G
+        P[t+1]=np.linalg.multi_dot([sys.A[t],beta,sys.A[t].T])+sys.W[t].G**2*0.33
     for t in range(T-1,-1,-1):
         alpha=np.linalg.multi_dot([sys.B[t].T,S[t+1],sys.B[t]])+sys.RR[t]
         beta=S[t+1]-np.linalg.multi_dot([S[t+1],sys.B[t],np.linalg.inv(alpha),sys.B[t].T,S[t+1]])
@@ -248,7 +248,7 @@ def LQG_LTV(sys,T):
         X=np.linalg.multi_dot([sys.B[t].T,S[t+1],sys.B[t]])+sys.RR[t]
         K[t]=np.linalg.multi_dot([np.linalg.inv(X),sys.B[t].T,S[t+1],sys.A[t]])
     for t in range(T+1):
-        Y=np.linalg.multi_dot([sys.C[t],P[t],sys.C[t].T])+sys.V[t].G
+        Y=np.linalg.multi_dot([sys.C[t],P[t],sys.C[t].T])+sys.V[t].G**2*0.33
 #        L[t]=np.linalg.multi_dot([sys.A[t],P[t],sys.C[t].T,np.linalg.inv(Y)])
         L[t]=np.linalg.multi_dot([P[t],sys.C[t].T,np.linalg.inv(Y)])
     return L,K    

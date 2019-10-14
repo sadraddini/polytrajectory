@@ -8,9 +8,9 @@ from pypolytrajectory.synthesis import output_feedback_synthesis,outputfeedback_
 from pypolytrajectory.system import LQG_LTV,LTV,LQG
 import scipy.linalg as spa
 
-np.random.seed(1)
+np.random.seed(0)
 S=LTV()
-n=500
+n=1000
 m=5
 o=1
 z=1
@@ -19,7 +19,7 @@ S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
 B[0,0]=0
 #B[1,0]=0
-A=0.98*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.01
+A=0.99*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.005
 C=np.zeros((o,n))
 C[0,0]=1
 #C[1,1]=1
@@ -236,7 +236,7 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
 #    ax1.set_title(r'Possible Control Inputs Over Time',fontsize=26)
 #    ax2.set_title(r'Error of Observer State')
     if "TI-LQG" in keys:
-        L,K=LQG(S.A[0],S.B[0],S.C[0],S.W[0].G,S.V[0].G,S.QQ[0],S.RR[0])
+        L,K=LQG(S.A[0],S.B[0],S.C[0],S.W[0].G**2,S.V[0].G**2,S.QQ[0],S.RR[0])
     if "TV-LQG" in keys:
         S.L,S.K=LQG_LTV(S,T)
     for i in range(N):
@@ -272,11 +272,15 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
         J={}
         for method in x.keys():
             J[method]=sum([np.linalg.norm(np.dot(S.D[t],x[method][t]),ord=2)**2+np.linalg.norm(u[method][t],ord=2)**2 for t in range(T)])
+            J[method]+=np.linalg.norm(np.dot(S.D[T],x[method][T]),ord=2)**2
         print J
     return J
 
 J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG"])
-#N=100
-#J=simulate_and_cost_evaluate(N=N,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
-
+#J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
+N=100
+J=simulate_and_cost_evaluate(N=N,disturbance_method="extreme",keys=["Our Method","TV-LQG"])
+a=np.array([J[i]["Our Method"]/J[i]["TV-LQG"] for i in range(N)])
+#b=np.array([J[i]["Our Method"]/J[i]["TI-LQG"] for i in range(N)])
+print np.mean(a)
     
