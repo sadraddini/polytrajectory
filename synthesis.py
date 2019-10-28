@@ -56,7 +56,7 @@ def output_feedback_synthesis(sys,T):
     # Performance variables
     for t in range(T+1):
         # Z zonotope
-        print "time construction",t
+        print("time construction",t)
         z_bar=np.linalg.multi_dot([sys.R[t],Y_tilde[t]])+\
             np.linalg.multi_dot([sys.R[t],Phi[t],sys.Xi[t].x])+\
             np.linalg.multi_dot([sys.S[t],U_tilde[t]])+\
@@ -83,21 +83,21 @@ def output_feedback_synthesis(sys,T):
         U[t]=zonotope(u_bar,Gu)
     # Proxy Quadratic cost
     for t in range(1,T):
-        print t,"cost"
+        print(t,"cost")
         prog.AddQuadraticCost(sum(U[t].x.flatten()**2))
         prog.AddQuadraticCost(sum(U[t].G.flatten()**2))
         prog.AddQuadraticCost(sum(Z[t].x.flatten()**2))
         prog.AddQuadraticCost(sum(Z[t].G.flatten()**2))
-    print "Now solving the QP"
+    print("Now solving the QP")
     result=gurobi_solver.Solve(prog,None,None)
     if result.is_success():
-        print "Synthesis Success!","\n"*5
+        print("Synthesis Success!","\n"*5)
 #        print "D=",result.GetSolution(D)
         theta_n={t:result.GetSolution(theta[t]).reshape(theta[t].shape) for t in range(0,T)}
         u_tilde_n={t:result.GetSolution(u_tilde[t]).reshape(u_tilde[t].shape) for t in range(0,T)}
         return u_tilde_n,theta_n
     else:
-        print "Synthesis Failed!"            
+        print("Synthesis Failed!")            
         
 def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
     prog=MP.MathematicalProgram()
@@ -111,6 +111,10 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
     # Main variables
     for t in range(T+1):
         theta[t]=prog.NewContinuousVariables(sys.m,sys.o*(t+1),"theta%d"%t)
+#        T_last=50
+#        for i in range(sys.o*(t+1)):
+#            if sys.o*(t+1)-i>sys.o*T_last:
+#                theta[t][:,i]=0
         u_tilde[t]=prog.NewContinuousVariables(sys.m,1,"u_tilde%d"%t)
         y_tilde[t]=prog.NewContinuousVariables(sys.o,1,"y_tilde%d"%t)
         phi[t]=prog.NewContinuousVariables(sys.o,sys.o*(t+1),"Phi%d"%t)
@@ -127,14 +131,16 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
         # Dynamics
         s=np.dot(sys.M[t],Y_tilde[t])+np.dot(sys.N[t],U_tilde[t])
         prog.AddLinearConstraint(np.equal(y_tilde[t+1],s,dtype='object').flatten())
+#        prog.AddLinearConstraint((y_tilde[t+1]==s).flatten())
         S=np.hstack((np.dot(sys.M[t],Phi[t])+np.dot(sys.N[t],Theta[t]),np.eye(sys.o)))
         prog.AddLinearConstraint(np.equal(phi[t+1],S,dtype='object').flatten())
+#        prog.AddLinearConstraint((phi[t+1]==S).flatten())        
         Phi[t+1]=triangular_stack(Phi[t],phi[t+1])
         Theta[t+1]=triangular_stack(Theta[t],theta[t+1])
         # Performance variables
     for t in range(T+1):
         # Z zonotope
-        print "time construction",t
+        print("time construction",t)
         z_bar=np.linalg.multi_dot([sys.R[t],Y_tilde[t]])+\
             np.linalg.multi_dot([sys.R[t],Phi[t],sys.Xi[t].x])+\
             np.linalg.multi_dot([sys.S[t],U_tilde[t]])+\
@@ -152,21 +158,22 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
         U[t]=zonotope(u_bar,Gu)
     # Constraints
     for t,value in H_U.items():
-        print "performing subset for U",t,value
+        print("performing subset for U",t,value)
         subset(prog,U[t],H_U[t]) 
     for t,value in H_Z.items():
-        print "performing subset for Z",t,value
+        print("performing subset for Z",t,value)
         subset(prog,Z[t],H_Z[t]) 
     # Proxy Linear Cost
+    prog.AddLinearConstraint(np.equal(u_tilde[T-1],np.zeros((sys.m,1)),dtype='object').flatten())
     if True:
         r={}
-        r["u-max"]=prog.NewContinuousVariables(1,1,"ru-max")
-        r["z-max"]=prog.NewContinuousVariables(1,1,"rz-max")
-        prog.NewContinuousVariables(1,1,"r")
+#        r["u-max"]=prog.NewContinuousVariables(1,1,"ru-max")
+#        r["z-max"]=prog.NewContinuousVariables(1,1,"rz-max")
+#        prog.NewContinuousVariables(1,1,"r")
 #        prog.AddLinearCost(r["u-max"][0,0])
 #        prog.AddLinearCost(r["z-max"][0,0])
         for t in range(1,T+1):
-            print t,"adding cost for z"
+            print(t,"adding cost for z")
             r["z",t]=prog.NewContinuousVariables(1,1,"r")
             R=hyperbox(sys.z)
             ZT=H_polytope(R.H_polytope.H,np.dot(R.H_polytope.h,r["z",t]),symbolic=True)
@@ -174,7 +181,7 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
 #            prog.AddLinearConstraint(np.less_equal(r["z",t],r["z-max"],dtype='object').flatten())
             prog.AddQuadraticCost(r["z",t][0,0]*r["z",t][0,0])
         for t in range(T):
-            print t,"adding cost for u"
+            print(t,"adding cost for u")
             r["u",t]=prog.NewContinuousVariables(1,1,"r")
             R=hyperbox(sys.m)
             UT=H_polytope(R.H_polytope.H,np.dot(R.H_polytope.h,r["u",t]),symbolic=True)
@@ -186,29 +193,30 @@ def output_feedback_synthesis_lightweight_many_variables(sys,T,H_Z={},H_U={}):
     elif False:
         J=0
         for t in range(T):
-            print t,"cost"
+            print(t,"cost")
             J+=sum(U[t].x.flatten()**2)
             J+=sum(U[t].G.flatten()**2)
             J+=sum(Z[t+1].x.flatten()**2)
             J+=sum(Gz[t+1].flatten()**2)
         prog.AddQuadraticCost(J)    
-    print "Now solving the Linear Program"
+    print("Now solving the Linear Program")
     start=time.time()
     result=gurobi_solver.Solve(prog,None,None)
-    print "time to solve",time.time()-start
+    print("time to solve",time.time()-start)
     if result.is_success():
-        print "Synthesis Success!","\n"*5
+        print("Synthesis Success!","\n"*5)
 #        print "D=",result.GetSolution(D)
         theta_n={t:result.GetSolution(theta[t]).reshape(theta[t].shape) for t in range(0,T)}
         u_tilde_n={t:result.GetSolution(u_tilde[t]).reshape(u_tilde[t].shape) for t in range(0,T)}
         r_z=np.array([result.GetSolution(r["z",t][0,0]) for t in range(1,T+1)])
         r_u=np.array([result.GetSolution(r["u",t][0,0]) for t in range(0,T)])
-        print "Upper Cost",np.linalg.norm(r_z,ord=2)**2+np.linalg.norm(r_u,ord=2)**2
-        print r_z
-        print r_u
-        return u_tilde_n,theta_n
+        print("Upper Cost",np.linalg.norm(r_z,ord=2)**2+np.linalg.norm(r_u,ord=2)**2)
+#        print "Upper Cost",np.linalg.norm(r_u,ord=2)**2
+#        print r_z
+        print(r_u)
+        return(u_tilde_n,theta_n)
     else:
-        print "Synthesis Failed!"
+        print("Synthesis Failed!")
 
         
 def outputfeedback_synthesis_zonotope_solution(sys,u_tilde,theta):
@@ -237,7 +245,7 @@ def outputfeedback_synthesis_zonotope_solution(sys,u_tilde,theta):
     # Performance variables
     for t in range(T+1):
         # Z zonotope
-        print "time synthesis",t
+        print("time synthesis",t)
         z_bar=np.linalg.multi_dot([sys.R[t],Y_tilde[t]])+\
             np.linalg.multi_dot([sys.R[t],Phi[t],sys.Xi[t].x])+\
             np.linalg.multi_dot([sys.S[t],U_tilde[t]])+\
@@ -265,7 +273,7 @@ def outputfeedback_synthesis_zonotope_solution(sys,u_tilde,theta):
     return Z,U
 
 
-def invariance_time(sys,T):
+def invariance_time(sys,T,H_X=None,H_U=None,reset_map=[]):
     """
         The idea is to find invariance
     """ 
@@ -284,37 +292,64 @@ def invariance_time(sys,T):
         U_tilde[t]=np.vstack([u_tilde[tau] for tau in range(t+1)])
     for t in range(T-1):
         Theta[t+1]=triangular_stack(Theta[t],theta[t+1])
-    Ptheta=np.dot(sys.P["u",T],Theta[T-1])
-    a_x=sys.P["x",T]+np.dot(Ptheta,sys.Xi["x",T-1])
-    a_w=sys.P["w",T] + np.dot(Ptheta,sys.Xi["w",T-1])
-    a_v=np.dot(Ptheta,sys.Xi["v",T-1])
-    Gw=spa.block_diag(*[sys.W[t].G for tau in range(0,T)])
-    Gv=spa.block_diag(*[sys.V[t].G for tau in range(0,T)])
-    Wbar=np.vstack([sys.W[tau].x for tau in range(0,T)])
-    Vbar=np.vstack([sys.V[tau].x for tau in range(0,T)])
-    x_bar=np.dot(sys.P["u",T],U_tilde[T-1]) + np.dot(a_x,sys.X0.x) \
-            + np.dot(a_w,Wbar) + np.dot(a_v,Vbar)
-    G=np.hstack((  np.dot(a_x,sys.X0.G), np.dot(a_w,Gw), np.dot(a_v,Gv)  ))
-    X_new=zonotope(x_bar,G)
-    subset(prog,X_new,sys.X0)
+    X,U={},{}
+    for t in range(1,T+1):
+        Ptheta=np.dot(sys.P["u",t],Theta[t-1])
+        a_x=sys.P["x",t]+np.dot(Ptheta,sys.Xi["x",t-1])
+        a_w=sys.P["w",t] + np.dot(Ptheta,sys.Xi["w",t-1])
+        a_v=np.dot(Ptheta,sys.Xi["v",t-1])
+        Gw=spa.block_diag(*[sys.W[tau].G for tau in range(0,t)])
+        Gv=spa.block_diag(*[sys.V[tau].G for tau in range(0,t)])
+        Wbar=np.vstack([sys.W[tau].x for tau in range(0,t)])
+        Vbar=np.vstack([sys.V[tau].x for tau in range(0,t)])
+        x_bar=np.dot(sys.P["u",t],U_tilde[t-1]) + np.dot(a_x,sys.X0.x) \
+                + np.dot(a_w,Wbar) + np.dot(a_v,Vbar)
+        G=np.hstack((  np.dot(a_x,sys.X0.G), np.dot(a_w,Gw), np.dot(a_v,Gv)  ))
+        X[t]=zonotope(x_bar,G)
+        if H_X!=None:
+            subset(prog,X[t],H_X)
+    if H_U!=None:
+        for t in range(T):
+            u_bar=u_tilde[t]+np.dot(theta[t],sys.Xi[t].x)
+            Gu=np.dot(theta[t],sys.Xi[t].G)
+            U[t]=zonotope(u_bar,Gu)
+            subset(prog,U[t],H_U)
+            print("subset for U done")
+    # Terminal Constraint
+    if len(reset_map)!=0:
+        print("A reset map is found. Are you sure?")
+        X[T].x=np.dot(reset_map,X[T].x)
+        X[T].G=np.dot(reset_map,X[T].G)
+    subset(prog,X[T],sys.X0)
+    # Optimization
     J=0
     for t in range(T):
-        print t,"cost"
+        print(t,"u cost")
         J+=sum(u_tilde[t].flatten()**2)
-        J+=sum(theta[t].flatten()**2)
+#        J+=sum(theta[t].flatten()**2)
+    for t in range(1,T):
+        print(t,"x cost")
+        J+=sum(X[t].x.flatten()**2)    
+#        J+=sum(X[t].G.flatten()**2)    
     prog.AddQuadraticCost(J) 
-    print "Now solving the Quadratic Program"
+    print("Now solving the Quadratic Program")
     start=time.time()
     result=gurobi_solver.Solve(prog,None,None)
-    print "time to solve",time.time()-start
+    print("time to solve",time.time()-start)
     if result.is_success():
-        print "Synthesis Success!","\n"*5
+        print("Synthesis Success!","\n"*5)
         theta_n={t:result.GetSolution(theta[t]).reshape(theta[t].shape) for t in range(0,T)}
         u_tilde_n={t:result.GetSolution(u_tilde[t]).reshape(u_tilde[t].shape) for t in range(0,T)}
-        x_bar_n,G_n=result.GetSolution(x_bar),result.GetSolution(G)
-        return u_tilde_n,theta_n,zonotope(x_bar_n,G_n)
+        X_n={t:zonotope(sym.Evaluate(result.GetSolution(X[t].x)),\
+                        sym.Evaluate(result.GetSolution(X[t].G))) for t in range(1,T+1)}
+        if H_U!=None:
+            U_n={t:zonotope(sym.Evaluate(result.GetSolution(U[t].x)),\
+                            sym.Evaluate(result.GetSolution(U[t].G))) for t in range(T)}
+        else:
+            U_n={}
+        return u_tilde_n,theta_n,X_n,U_n
     else:
-        print "Synthesis Failed!"
+        print("Synthesis Failed!")
 
 
 

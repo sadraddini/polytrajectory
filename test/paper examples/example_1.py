@@ -27,11 +27,9 @@ T=42
 S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
 B[0,0]=0
-#B[1,0]=0
-A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.95
+A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01
 C=np.zeros((o,n))
 C[0,0]=1
-#C[1,1]=1
 D=np.eye(n)[0:z,:]
 #A=np.array([[0.28,0.25,-0.19,-0.22,0.03,-0.50],
 #                 [0.25,-0.47,0.30,0.17,-0.11,-0.11],
@@ -55,9 +53,7 @@ for t in range(T):
 S.F_cost=np.eye(n)*0
 S.F_cost[0,0]=1
 
-S.U_set=zonotope(np.zeros((m,1)),np.eye(m)*1)
 S.construct_dimensions()
-#S.construct_E()
 S._abstract_evolution_matrices()
 S._error_zonotopes()
 
@@ -82,10 +78,11 @@ plt.show()
 import matplotlib.pyplot as plt0
 plt0.plot(range(T-1),[np.linalg.norm(S.E[t].G,"fro") for t in range(T-1)],LineWidth=2,color='red')
 plt0.plot(range(T-1),[np.linalg.norm(S.E[t].G,"fro") for t in range(T-1)],'o',MarkerSize=4,color='black')
-plt0.title(r"$\mathbb{E}_t$ Over Time",fontsize=20)
+plt0.title(r"Observability Error Over Time",fontsize=20)
 plt0.xlabel(r"time",fontsize=20)
 plt0.ylabel(r"$tr(EE')$",fontsize=20)
 plt0.grid(lw=0.2,color=(0.2,0.3,0.2))
+
 
 import matplotlib.pyplot as plt1
 plt1.plot(range(T-1),[np.linalg.norm(S.F[t].G,"fro") for t in range(T-1)],LineWidth=3,color='green')
@@ -94,7 +91,6 @@ plt1.title(r"$\mathbb{F}_t$ Over Time",fontsize=20)
 plt1.xlabel(r"time",fontsize=20)
 plt1.ylabel(r"$tr(FF')$",fontsize=20)
 plt1.grid(lw=0.2,color=(0.2,0.3,0.2))
-
 
 T=40
 
@@ -180,7 +176,7 @@ def simulate_my_controller(sys,x_0,T,w,v):
     x[0]=x_0
     Y,U={},{}
     for t in range(T+1):
-        print "simulating time:",t
+        print("simulating time:",t)
         y[t]=np.dot(sys.C[t],x[t])+v[t]
         if t==T:
             return x,y,u,x
@@ -202,7 +198,7 @@ def simulate_and_cost_evaluate(N=1,disturbance_method="extreme",keys=["Our Metho
     if "TV-LQG" in keys:
         S.L,S.K=LQG_LTV(S,T)
     for i in range(N):
-        print "iteration",i
+        print("iteration",i)
         J[i]={}
         zeta_x=2*(np.random.random((S.n,1))-0.5)
         x_0=np.dot(S.X0.G,zeta_x)+S.X0.x
@@ -240,6 +236,7 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
     ax0.set_xlabel(r'time',fontsize=26)
     ax0.set_ylabel(r'$x_1$',fontsize=26)
     ax0.set_title(r'Performance Output Over Time',fontsize=26)
+    ax1.set_title(r'Control Input Over Time',fontsize=26)
     ax1.set_xlabel(r'time',fontsize=26)
     ax1.set_ylabel(r'$u$',fontsize=26)
 #    ax1.set_title(r'Possible Control Inputs Over Time',fontsize=26)
@@ -252,6 +249,7 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
         zeta_x=2*(np.random.random((S.n,1))-0.5)
         zeta_x=1*np.ones((S.n,1))*(-1)**np.random.randint(1,3)
         x_0=np.dot(S.X0.G,zeta_x)+S.X0.x
+#        x_0=np.random.multivariate_normal(mean=S.X0.x.reshape(S.n),cov=S.X0.G).reshape(S.n,1)
         w,v=generate_random_disturbance(S,T,method=disturbance_method)
         x,y,u,x_observer={},{},{},{}
         for method in keys:
@@ -282,12 +280,13 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
         for method in x.keys():
             J[method]=sum([np.linalg.norm(np.dot(S.D[t],x[method][t]),ord=2)**2+np.linalg.norm(u[method][t],ord=2)**2 for t in range(T)])
             J[method]+=np.linalg.norm(np.dot(S.D[T],x[method][T]),ord=2)**2
-        print J
+        print(J)
     return J
 
 J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
-N=100
-J=simulate_and_cost_evaluate(N=N,disturbance_method="guassian",keys=["Our Method","TV-LQG","TI-LQG"])
-a=np.array([J[i]["Our Method"]/J[i]["TV-LQG"] for i in range(N)])
-b=np.array([J[i]["Our Method"]/J[i]["TI-LQG"] for i in range(N)])
-print np.mean(a),np.mean(b)
+
+#N=1000
+#J=simulate_and_cost_evaluate(N=N,disturbance_method="guassian",keys=["Our Method","TV-LQG","TI-LQG"])
+#a=np.array([J[i]["Our Method"]/J[i]["TV-LQG"] for i in range(N)])
+#b=np.array([J[i]["Our Method"]/J[i]["TI-LQG"] for i in range(N)])
+#print(np.mean(a),np.mean(b))

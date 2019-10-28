@@ -61,8 +61,8 @@ def test_controllability(A,B):
     n=A.shape[0]
     C=np.hstack([np.dot(np.linalg.matrix_power(A,i),B) for i in range(n)])
     r=np.linalg.matrix_rank(C)
-    print r
+    print(r)
     if r==n:
-        print "system is controllable as %d = %d"%(r,n)
+        print("system is controllable as %d = %d"%(r,n))
     else:
-        print "system is NOT controllable as %d < %d"%(r,n)
+        print("system is NOT controllable as %d < %d"%(r,n))

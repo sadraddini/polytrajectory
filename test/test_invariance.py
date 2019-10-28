@@ -16,18 +16,18 @@ from pypolytrajectory.synthesis import output_feedback_synthesis,outputfeedback_
 from pypolytrajectory.system import LQG_LTV,LTV,LQG
 import scipy.linalg as spa
 
-np.random.seed(1)
+np.random.seed(0)
 S=LTV()
-n=12
-m=1
+n=6
+m=2
 o=1
 z=1
-T=42
-S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*10)
+T=22
+S.X0=zonotope(np.ones((n,1))*0,np.eye(n)*1)
 B=np.random.randint(0,2,size=(n,m))
 B[0,0]=0
 #B[1,0]=0
-A=0.0*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.5
+A=0.3*np.eye(n)+np.random.randint(-100,100,size=(n,n))*0.01*0.2
 C=np.zeros((o,n))
 C[0,0]=1
 #C[1,1]=1
@@ -149,141 +149,44 @@ def generate_random_disturbance(sys,T,method="guassian"):
     return w,v
 
 
-def simulate_LQG_LTV(sys,x_0,T,w,v):
-    x,y,u,x_observer={},{},{},{}
-    x[0]=x_0
-    y[0]=np.dot(sys.C[0],x[0])+v[0]    
-    x_observer[0]=np.dot(np.linalg.pinv(S.C[0]),y[0])
-    x_observer[0]=sys.X0.x
-    for t in range(T+1):
-#        print "simulating observer time:",t
-        if t==T:
-            return x,y,u,x_observer
-        u[t]=np.dot(-S.K[t],x_observer[t])
-        x[t+1]=np.dot(sys.A[t],x[t])+np.dot(sys.B[t],u[t])+w[t]
-        y[t+1]=np.dot(sys.C[t+1],x[t+1])+v[t+1]
-        x_observer[t+1]=np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])+\
-            np.dot(sys.L[t+1],y[t+1]-np.dot(sys.C[t+1],np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])))
-#        print "control",t,u[t],u[t].shape
-            
-def simulate_LQG_LTI(sys,x_0,T,w,v,L,K):
-    x,y,u,x_observer={},{},{},{}
-    x[0]=x_0
-    y[0]=np.dot(sys.C[0],x[0])+v[0]    
-    x_observer[0]=np.dot(np.linalg.pinv(S.C[0]),y[0])
-    x_observer[0]=sys.X0.x
-    for t in range(T+1):
-#        print "simulating observer time:",t
-        if t==T:
-            return x,y,u,x_observer
-        u[t]=np.dot(-K,x_observer[t])
-        x[t+1]=np.dot(sys.A[t],x[t])+np.dot(sys.B[t],u[t])+w[t]
-        y[t+1]=np.dot(sys.C[t+1],x[t+1])+v[t+1]
-        x_observer[t+1]=np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])+\
-            np.dot(L,y[t+1]-np.dot(sys.C[t+1],np.dot(sys.A[t],x_observer[t])+np.dot(sys.B[t],u[t])))
-#        print "control",t,u[t],u[t].shape
-        
-    
-def simulate_and_cost_evaluate(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG"]):
-    J={}
-    if "TI-LQG" in keys:
-        L,K=LQG(S.A[0],S.B[0],S.C[0],S.W[0].G,S.V[0].G,S.QQ[0],S.RR[0])
-    if "TV-LQG" in keys:
-        S.L,S.K=LQG_LTV(S,T)
-    for i in range(N):
-        print "iteration",i
-        J[i]={}
-        zeta_x=2*(np.random.random((S.n,1))-0.5)
-        x_0=np.dot(S.X0.G,zeta_x)+S.X0.x
-        w,v=generate_random_disturbance(S,T,method=disturbance_method)
-        x,y,u,x_observer={},{},{},{}
-        for method in keys:
-            if method=="Our Method":
-                x[method],y[method],u[method],x_observer[method]=simulate_my_controller(S,x_0,T,w,v)
-            elif method=="TI-LQG":
-                x[method],y[method],u[method],x_observer[method]=simulate_LQG_LTI(S,x_0,T,w,v,L,K)
-            elif method=="TV-LQG":
-                x[method],y[method],u[method],x_observer[method]=simulate_LQG_LTV(S,x_0,T,w,v)
-        for method in x.keys():
-            J[i][method]=sum([np.linalg.norm(np.dot(S.D[t],x[method][t]),ord=2)**2+np.linalg.norm(u[method][t],ord=2)**2 for t in range(T)])
-    return J
-        
-        
-def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG"]):
-    import matplotlib.pyplot as plt
-    fig0, ax0 = plt.subplots()
-    fig1, ax1 = plt.subplots()
-#    fig2, ax2 = plt.subplots()
-    fig0.set_size_inches(12, 8)
-    fig1.set_size_inches(12, 8)
-    y_minus,y_plus,u_minus,u_plus=[],[],[],[]
-    for t in range(T+1):
-        y_minus.append(np.asscalar(Z[t].x[0,0]-np.linalg.norm(Z[t].G[0,:],ord=1)))
-        y_plus.append(np.asscalar(Z[t].x[0,0]+np.linalg.norm(Z[t].G[0,:],ord=1)))
-    ax0.fill_between(range(T+1),y_minus,y_plus,alpha=0.5,color='orange')
-    y_minus,y_plus,u_minus,u_plus=[],[],[],[]
-    for t in range(T):
-        u_minus.append(np.asscalar(U[t].x[0,0]-np.linalg.norm(U[t].G[0,:],ord=1)))
-        u_plus.append(np.asscalar(U[t].x[0,0]+np.linalg.norm(U[t].G[0,:],ord=1)))
-    ax1.fill_between(range(T),u_minus,u_plus,color='purple',alpha=0.5)
-    ax0.set_xlabel(r'time',fontsize=26)
-    ax0.set_ylabel(r'$x_1$',fontsize=26)
-    ax0.set_title(r'Performance Output Over Time',fontsize=26)
-    ax1.set_xlabel(r'time',fontsize=26)
-    ax1.set_ylabel(r'$u$',fontsize=26)
-#    ax1.set_title(r'Possible Control Inputs Over Time',fontsize=26)
-#    ax2.set_title(r'Error of Observer State')
-    if "TI-LQG" in keys:
-        L,K=LQG(S.A[0],S.B[0],S.C[0],S.W[0].G**2,S.V[0].G**2,S.QQ[0],S.RR[0])
-    if "TV-LQG" in keys:
-        S.L,S.K=LQG_LTV(S,T)
-    for i in range(N):
-        zeta_x=2*(np.random.random((S.n,1))-0.5)
-        zeta_x=1*np.ones((S.n,1))*(-1)**np.random.randint(1,3)
-        x_0=np.dot(S.X0.G,zeta_x)+S.X0.x
-        w,v=generate_random_disturbance(S,T,method=disturbance_method)
-        x,y,u,x_observer={},{},{},{}
-        for method in keys:
-            if method=="Our Method":
-                x[method],y[method],u[method],x_observer[method]=simulate_my_controller(S,x_0,T,w,v)
-            elif method=="TI-LQG":
-                x[method],y[method],u[method],x_observer[method]=simulate_LQG_LTI(S,x_0,T,w,v,L,K)
-            elif method=="TV-LQG":
-                x[method],y[method],u[method],x_observer[method]=simulate_LQG_LTV(S,x_0,T,w,v)
-        # Plot
-        c={"TI-LQG":"green","TV-LQG":"blue","Our Method":"Red"}
-        for method in keys:
-            ax0.plot(range(T+1),[np.asscalar(x[method][t][0,0]) for t in range(T+1)],'-',Linewidth=5,color=c[method],label=method)
-            ax0.plot(range(T+1),[np.asscalar(x[method][t][0,0]) for t in range(T+1)],'o',Linewidth=5,color=c[method])
-            ax0.plot(range(T+1),[0 for t in range(T+1)],'--',Linewidth=1,color="black")
-            ax0.grid(lw=0.2,color=(0.2,0.3,0.2))
-        handles, labels = ax0.get_legend_handles_labels()
-        ax0.legend(handles,labels,fontsize=20)
-        for method in keys:
-            ax1.plot(range(T),[np.asscalar(u[method][t][0,0]) for t in range(T)],'-',Linewidth=5,color=c[method],label=method)
-            ax1.plot(range(T),[np.asscalar(u[method][t][0,0]) for t in range(T)],'o',Linewidth=5,color=c[method])
-            ax1.plot(range(T),[0 for t in range(T)],'--',Linewidth=1,color="black")
-            ax1.grid(lw=0.2,color=(0.2,0.3,0.2))
-
-        handles, labels = ax0.get_legend_handles_labels()
-        ax1.legend(handles,labels,fontsize=20)
-        J={}
-        for method in x.keys():
-            J[method]=sum([np.linalg.norm(np.dot(S.D[t],x[method][t]),ord=2)**2+np.linalg.norm(u[method][t],ord=2)**2 for t in range(T)])
-            J[method]+=np.linalg.norm(np.dot(S.D[T],x[method][T]),ord=2)**2
-        print J
-    return J
 
 T=10
-N=10
-u_tilde,theta,X_T=invariance_time(S,T=T) 
+H_U=zonotope(np.zeros((S.m,1)),np.eye(S.m)*10)
+H_X=zonotope(np.zeros((S.n,1)),np.eye(S.n)*20)
+u_tilde,theta,X,U=invariance_time(S,T,H_X,H_U) 
+N=3
 zeta_x=1*np.ones((S.n,1))*(-1)**np.random.randint(1,3)
 x_0=np.dot(S.X0.G,zeta_x)+S.X0.x
 w,v=generate_random_disturbance(S,T*N,method="extreme")
 x,y,u=simulate_my_invariance_controller(S,u_tilde,theta,x_0,T,w,v,N)
-plt.plot([x[t][2,0] for t in range(T*N)],[x[t][1,0] for t in range(T*N)])               
-plt.plot([x[t][2,0] for t in range(T*N)])               
-             
+# Plots
+fig0, ax0 = plt.subplots()
+fig1, ax1 = plt.subplots()
+fig0.set_size_inches(12, 8)
+fig1.set_size_inches(12, 8)
+for i in range(S.n):
+    ax0.plot([x[t][i,0] for t in range(T*N)])               
+for i in range(S.m): 
+    ax1.plot([u[t][i,0] for t in range(T*N)])               
+ax0.set_xlabel(r"t",FontSize=20)
+ax1.set_xlabel(r"t",FontSize=20)
+ax0.set_ylabel(r"x",FontSize=20)
+ax1.set_ylabel(r"u",FontSize=20) 
+for i in range(S.n):
+    x_minus,x_plus=[],[]
+    x_minus.append(np.asscalar(S.X0.x[i,0]-np.linalg.norm(S.X0.G[i,:],ord=1)))
+    x_plus.append(np.asscalar(S.X0.x[i,0]+np.linalg.norm(S.X0.G[i,:],ord=1)))
+    for t in range(1,T+1):
+        x_minus.append(np.asscalar(X[t].x[i,0]-np.linalg.norm(X[t].G[i,:],ord=1)))
+        x_plus.append(np.asscalar(X[t].x[i,0]+np.linalg.norm(X[t].G[i,:],ord=1)))
+    ax0.fill_between(range(T+1),x_minus,x_plus,alpha=0.5,color='orange')
+for i in range(S.m):
+    u_minus,u_plus=[],[]
+    for t in range(T):
+        u_minus.append(np.asscalar(U[t].x[i,0]-np.linalg.norm(U[t].G[i,:],ord=1)))
+        u_plus.append(np.asscalar(U[t].x[i,0]+np.linalg.norm(U[t].G[i,:],ord=1)))
+    ax1.fill_between(range(T),u_minus,u_plus,color='purple',alpha=0.5)
+    
 #J=simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQG","TI-LQG"])
 #N=100
 #J=simulate_and_cost_evaluate(N=N,disturbance_method="guassian",keys=["Our Method","TV-LQG","TI-LQG"])

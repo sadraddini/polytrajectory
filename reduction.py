@@ -120,7 +120,7 @@ def error_construction(sys,T,q0):
             sys.E[source,t,"G"]=triangular_stack(sys.E[source,t-1,"G"],sys.Z[source,t])
         A=np.hstack([sys.E[source,t,"G"] for source in ["X0","V","W"] ])
         sys.E[t].G=triangular_stack(sys.E[-1].G,A)
-    print "All sources complete"
+    print("All sources complete")
     
 
 def order_reduction_error(sys,T,q=0):
