@@ -251,6 +251,7 @@ ax.set_ylabel(r"$\dot{\theta}$",FontSize=20)
 
 handles, labels = ax.get_legend_handles_labels()
 ax.legend(handles,labels,fontsize=20)
+fig.savefig('figures/Example5', dpi=100)
 
 
 #fig,ax = plt.subplots()

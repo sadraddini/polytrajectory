@@ -53,19 +53,20 @@ S._error_zonotopes()
 
 
 import matplotlib.pyplot as plt
+fig,ax=plt.subplots()
 L=np.linalg.eigvals(S.A[0])
 X = [l.real for l in L]
 Y = [l.imag for l in L]
-plt.scatter(X,Y, color='red',s=50)
+ax.scatter(X,Y, color='red',s=50)
 N=200
 x,y=[np.cos(2*np.pi/N*i) for i in range(N)],[np.sin(2*np.pi/N*i) for i in range(N)]
-plt.plot(x,y,color='black')
-plt.axis("equal")
-plt.title(r"Location of Eigen-Values of $A$",fontsize=15)
-plt.grid(lw=0.2,color=(0.2,0.3,0.2))
-plt.xlabel("Re")
-plt.ylabel("Im")
-plt.show()
+ax.plot(x,y,color='black')
+ax.axis("equal")
+ax.set_title(r"Location of Eigen-Values of $A$",fontsize=15)
+ax.grid(lw=0.2,color=(0.2,0.3,0.2))
+ax.set_xlabel("Re")
+ax.set_ylabel("Im")
+fig.savefig('figures/Example2_poles', dpi=100)
 
 
 import matplotlib.pyplot as plt0
@@ -253,6 +254,7 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
             ax0.plot(range(T+1),[np.asscalar(x[method][t][0,0]) for t in range(T+1)],'o',Linewidth=5,color=c[method])
             ax0.plot(range(T+1),[0 for t in range(T+1)],'--',Linewidth=1,color="black")
             ax0.grid(lw=0.2,color=(0.2,0.3,0.2))
+            fig0.savefig('figures/Example2_u', dpi=100)
         handles, labels = ax0.get_legend_handles_labels()
         ax0.legend(handles,labels,fontsize=20)
         for method in keys:
@@ -260,7 +262,7 @@ def simulate_and_plot(N=1,disturbance_method="extreme",keys=["Our Method","TV-LQ
             ax1.plot(range(T),[np.asscalar(u[method][t][0,0]) for t in range(T)],'o',Linewidth=5,color=c[method])
             ax1.plot(range(T),[0 for t in range(T)],'--',Linewidth=1,color="black")
             ax1.grid(lw=0.2,color=(0.2,0.3,0.2))
-
+            fig1.savefig('figures/Example2_u', dpi=100)
         handles, labels = ax0.get_legend_handles_labels()
         ax1.legend(handles,labels,fontsize=20)
         J={}

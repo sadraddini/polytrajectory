@@ -188,7 +188,7 @@ for Tau in range(T+1):
     ax.set_ylim([-30,30])
     ax.plot([x[t][0,0] for t in range(Tau+1)],[x[t][1,0] for t in range(Tau+1)],'-',Linewidth=3,color='blue') 
     ax.plot([x[t][0,0] for t in range(Tau+1)],[x[t][1,0] for t in range(Tau+1)],'o',MarkerSize=5,color='blue')
-    fig.savefig('figures/mpc_z_%d.png'%Tau, dpi=100)
+    fig.savefig('figures/Example3_mpc_z_%d.png'%Tau, dpi=100)
 
 for Tau in range(T):
     fig2, ax2 = plt.subplots() # note we must use plt.subplots, not plt.subplot
@@ -199,4 +199,4 @@ for Tau in range(T):
     ax2.set_ylabel(r"$u_2$",fontsize=26) 
     ax2.plot([u[t][0,0] for t in range(Tau+1)],[u[t][1,0] for t in range(Tau+1)],'-',Linewidth=3,color=(0,0.3,0))  
     ax2.plot([u[t][0,0] for t in range(Tau+1)],[u[t][1,0] for t in range(Tau+1)],'o',MarkerSize=5,color=(0,0.3,0))  
-    fig2.savefig('figures/mpc_u_%d.png'%Tau, dpi=100)
+    fig2.savefig('figures/Example3_mpc_u_%d.png'%Tau, dpi=100)

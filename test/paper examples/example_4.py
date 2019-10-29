@@ -164,23 +164,25 @@ def simulate_my_controller(sys,x_0,T,w,v):
         u[t]=u_tilde[t]+np.dot(theta[t],xi[t])
         x[t+1]=np.dot(sys.A[t],x[t])+np.dot(sys.B[t],u[t])+w[t] 
 
-# Simulate
-w,v=generate_random_disturbance(S,T_synthesize,"extreme")
-zeta=2*(np.random.random((n,1))-0.5)
-zeta=(-0.99*np.ones((S.n,1)))**np.random.randint(1,3,size=((S.n,1)))
-x0=np.dot(S.X0.G,zeta)+S.X0.x
-x,y,u=simulate_my_controller(S,x0,T_synthesize,w,v)      
-# Create figure and axes
-fig,ax = plt.subplots()
-fig.set_size_inches(7, 2)  
-visualize(ax,x[0])
-z={}
-for t in range(T_synthesize):
-    ax.plot(x[t][0,0],x[t][1,0],'o',MarkerSize=6,color='blue')
-    ax.plot([x[tau][0,0] for tau in range(t+1)],\
-             [x[tau][1,0] for tau in range(t+1)],\
-             '--',LineWidth=1,color='black')
-    z[t]=np.dot(S.D[t],x[t])
+for i in range(3):
+    # Simulate
+    w,v=generate_random_disturbance(S,T_synthesize,"extreme")
+    zeta=2*(np.random.random((n,1))-0.5)
+    zeta=(-0.99*np.ones((S.n,1)))**np.random.randint(1,3,size=((S.n,1)))
+    x0=np.dot(S.X0.G,zeta)+S.X0.x
+    x,y,u=simulate_my_controller(S,x0,T_synthesize,w,v)      
+    # Create figure and axes
+    fig,ax = plt.subplots()
+    fig.set_size_inches(7, 2)  
+    visualize(ax,x[0])
+    z={}
+    for t in range(T_synthesize):
+        ax.plot(x[t][0,0],x[t][1,0],'o',MarkerSize=6,color='blue')
+        ax.plot([x[tau][0,0] for tau in range(t+1)],\
+                 [x[tau][1,0] for tau in range(t+1)],\
+                 '--',LineWidth=1,color='black')
+        z[t]=np.dot(S.D[t],x[t])
+    fig.savefig('figures/Example4_%i'%i, dpi=100)
 
 #fig2, ax2 = plt.subplots() # note we must use plt.subplots, not plt.subplot
 #Z_red={}       
