@@ -1,7 +1,1 @@
-# Polytopic Trajectories for Linear Time Varying Systems
-
-### Basics
-
-### State Feedback
-
-### Output Feedback Control
+# Polytopic Trajectories for Output Feedback of Linear Time Varying Systems
